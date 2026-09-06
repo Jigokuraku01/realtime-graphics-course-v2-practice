@@ -12,7 +12,10 @@
 
 #ifdef __linux__
 #include <X11/Xlib.h>
+#if __has_include(<wayland-client.h>)
+#define WGPU_APP_HAS_WAYLAND
 #include <wayland-client.h>
+#endif
 #endif
 
 namespace {
@@ -218,7 +221,9 @@ void WgpuApp::init(std::string_view title, int width, int height, bool srgb) {
         surfaceDescriptor.nextInChain = &surfaceSource.chain;
 
         surface_ = wgpuInstanceCreateSurface(instance_, &surfaceDescriptor);
-    } else if (auto* waylandDisplay = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr)) {
+    }
+#ifdef WGPU_APP_HAS_WAYLAND
+    else if (auto* waylandDisplay = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr)) {
         auto* waylandSurface = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, nullptr);
 
         WGPUSurfaceSourceWaylandSurface surfaceSource = {};
@@ -230,7 +235,9 @@ void WgpuApp::init(std::string_view title, int width, int height, bool srgb) {
         surfaceDescriptor.nextInChain = &surfaceSource.chain;
 
         surface_ = wgpuInstanceCreateSurface(instance_, &surfaceDescriptor);
-    } else {
+    }
+#endif
+    else {
         throw std::runtime_error("Unknown linux display");
     }
 #else
