@@ -30,7 +30,7 @@ template <typename Points, typename T>
 auto bezier(Points const &points, T t) {
     using std::begin;
     using std::end;
-    using point = std::remove_cv_t<std::remove_reference_t<decltype(*begin(points))>>;
+    using point = std::remove_cvref_t<decltype(*begin(points))>;
     static_assert(std::is_trivially_copyable_v<point>);
 
     std::size_t const n = static_cast<std::size_t>(points.size());
