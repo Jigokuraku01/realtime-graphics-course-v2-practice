@@ -12,7 +12,7 @@ public:
     ~WgpuApp();
 
     WgpuApp(const WgpuApp &) = delete;
-    WgpuApp &operator=(const WgpuApp &) = delete;
+    WgpuApp & operator = (const WgpuApp &) = delete;
 
     SDL_Window *window() const { return window_; }
     WGPUDevice device() const { return device_; }

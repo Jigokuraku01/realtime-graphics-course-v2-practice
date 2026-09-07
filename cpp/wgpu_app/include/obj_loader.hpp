@@ -17,4 +17,4 @@ struct ObjMesh {
     std::vector<std::uint32_t> indices;
 };
 
-ObjMesh loadObj(std::filesystem::path const &path);
+ObjMesh loadObj(std::filesystem::path const & path);

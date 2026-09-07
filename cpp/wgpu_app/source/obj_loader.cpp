@@ -24,15 +24,15 @@ struct VertexKey {
     std::uint32_t texcoord = 0;
     std::uint32_t normal = 0;
 
-    friend bool operator==(VertexKey const &, VertexKey const &) = default;
+    friend bool operator == (VertexKey const &, VertexKey const &) = default;
 };
 
-void hashCombine(std::size_t &seed, std::uint32_t value) {
+void hashCombine(std::size_t & seed, std::uint32_t value) {
     seed ^= static_cast<std::size_t>(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
 struct VertexKeyHash {
-    std::size_t operator()(VertexKey const &key) const {
+    std::size_t operator () (VertexKey const & key) const {
         std::size_t seed = 0;
         hashCombine(seed, key.position);
         hashCombine(seed, key.texcoord);
@@ -41,7 +41,7 @@ struct VertexKeyHash {
     }
 };
 
-std::string readFile(std::filesystem::path const &path) {
+std::string readFile(std::filesystem::path const & path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) {
         throw std::runtime_error("failed to open " + path.string());
@@ -56,13 +56,13 @@ bool isSpace(char c) {
     return c == ' ' || c == '\t' || c == '\r';
 }
 
-void skipSpaces(char const *&p, char const *end) {
+void skipSpaces(char const *& p, char const *end) {
     while (p != end && isSpace(*p)) {
         ++p;
     }
 }
 
-void skipLine(char const *&p, char const *end) {
+void skipLine(char const *& p, char const *end) {
     while (p != end && *p != '\n') {
         ++p;
     }
@@ -76,7 +76,7 @@ void skipLine(char const *&p, char const *end) {
 }
 
 template <typename T>
-T parseNumber(char const *&p, char const *end, char const *what, std::size_t lineNumber) {
+T parseNumber(char const *& p, char const *end, char const *what, std::size_t lineNumber) {
     skipSpaces(p, end);
     T value{};
     auto const [next, error] = std::from_chars(p, end, value);
@@ -87,7 +87,7 @@ T parseNumber(char const *&p, char const *end, char const *what, std::size_t lin
     return value;
 }
 
-math::vector3f parseVector(char const *&p, char const *end, char const *what,
+math::vector3f parseVector(char const *& p, char const *end, char const *what,
                            std::size_t lineNumber) {
     math::vector3f result;
     result.x() = parseNumber<float>(p, end, what, lineNumber);
@@ -96,7 +96,7 @@ math::vector3f parseVector(char const *&p, char const *end, char const *what,
     return result;
 }
 
-math::vector2f parseVector2(char const *&p, char const *end, char const *what,
+math::vector2f parseVector2(char const *& p, char const *end, char const *what,
                             std::size_t lineNumber) {
     math::vector2f result;
     result.x() = parseNumber<float>(p, end, what, lineNumber);
@@ -105,7 +105,7 @@ math::vector2f parseVector2(char const *&p, char const *end, char const *what,
 }
 
 // Parses "1", "1/2", "1//3" or "1/2/3".
-ObjIndex parseFaceCorner(char const *&p, char const *end, std::size_t lineNumber) {
+ObjIndex parseFaceCorner(char const *& p, char const *end, std::size_t lineNumber) {
     ObjIndex index;
     index.position = parseNumber<int>(p, end, "invalid OBJ face", lineNumber);
     if (p == end || *p != '/') {
@@ -134,7 +134,7 @@ std::uint32_t resolveIndex(int index, std::size_t size, std::size_t lineNumber) 
 
 }  // namespace
 
-ObjMesh loadObj(std::filesystem::path const &path) {
+ObjMesh loadObj(std::filesystem::path const & path) {
     std::string const contents = readFile(path);
 
     std::vector<math::vector3f> positions;

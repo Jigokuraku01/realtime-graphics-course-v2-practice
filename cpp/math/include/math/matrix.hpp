@@ -12,11 +12,11 @@ struct matrix {
 
     constexpr matrix() = default;
 
-    constexpr T (&operator[](std::size_t row))[Cols] { return data[row]; }
-    constexpr T const (&operator[](std::size_t row) const)[Cols] { return data[row]; }
+    constexpr T (& operator [] (std::size_t row))[Cols] { return data[row]; }
+    constexpr T const (& operator [] (std::size_t row) const)[Cols] { return data[row]; }
 
-    constexpr T &operator()(std::size_t row, std::size_t col) { return data[row][col]; }
-    constexpr T const &operator()(std::size_t row, std::size_t col) const {
+    constexpr T & operator () (std::size_t row, std::size_t col) { return data[row][col]; }
+    constexpr T const & operator () (std::size_t row, std::size_t col) const {
         return data[row][col];
     }
 
@@ -28,12 +28,12 @@ struct matrix {
         return m;
     }
 
-    friend constexpr bool operator==(matrix const &, matrix const &) = default;
+    friend constexpr bool operator == (matrix const &, matrix const &) = default;
 };
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> &operator+=(matrix<T, Rows, Cols> &a,
-                                            matrix<T, Rows, Cols> const &b) {
+constexpr matrix<T, Rows, Cols> & operator += (matrix<T, Rows, Cols> & a,
+                                            matrix<T, Rows, Cols> const & b) {
     for (std::size_t r = 0; r < Rows; ++r) {
         for (std::size_t c = 0; c < Cols; ++c) {
             a[r][c] += b[r][c];
@@ -43,8 +43,8 @@ constexpr matrix<T, Rows, Cols> &operator+=(matrix<T, Rows, Cols> &a,
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> &operator-=(matrix<T, Rows, Cols> &a,
-                                            matrix<T, Rows, Cols> const &b) {
+constexpr matrix<T, Rows, Cols> & operator -= (matrix<T, Rows, Cols> & a,
+                                            matrix<T, Rows, Cols> const & b) {
     for (std::size_t r = 0; r < Rows; ++r) {
         for (std::size_t c = 0; c < Cols; ++c) {
             a[r][c] -= b[r][c];
@@ -54,7 +54,7 @@ constexpr matrix<T, Rows, Cols> &operator-=(matrix<T, Rows, Cols> &a,
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> &operator*=(matrix<T, Rows, Cols> &a, T s) {
+constexpr matrix<T, Rows, Cols> & operator *= (matrix<T, Rows, Cols> & a, T s) {
     for (std::size_t r = 0; r < Rows; ++r) {
         for (std::size_t c = 0; c < Cols; ++c) {
             a[r][c] *= s;
@@ -64,29 +64,29 @@ constexpr matrix<T, Rows, Cols> &operator*=(matrix<T, Rows, Cols> &a, T s) {
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> operator+(matrix<T, Rows, Cols> a,
-                                          matrix<T, Rows, Cols> const &b) {
+constexpr matrix<T, Rows, Cols> operator + (matrix<T, Rows, Cols> a,
+                                          matrix<T, Rows, Cols> const & b) {
     return a += b;
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> operator-(matrix<T, Rows, Cols> a,
-                                          matrix<T, Rows, Cols> const &b) {
+constexpr matrix<T, Rows, Cols> operator - (matrix<T, Rows, Cols> a,
+                                          matrix<T, Rows, Cols> const & b) {
     return a -= b;
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> operator*(matrix<T, Rows, Cols> m, T s) {
+constexpr matrix<T, Rows, Cols> operator * (matrix<T, Rows, Cols> m, T s) {
     return m *= s;
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> operator*(T s, matrix<T, Rows, Cols> m) {
+constexpr matrix<T, Rows, Cols> operator * (T s, matrix<T, Rows, Cols> m) {
     return m *= s;
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr vector<T, Rows> operator*(matrix<T, Rows, Cols> const &m, vector<T, Cols> const &v) {
+constexpr vector<T, Rows> operator * (matrix<T, Rows, Cols> const & m, vector<T, Cols> const & v) {
     vector<T, Rows> result;
     for (std::size_t r = 0; r < Rows; ++r) {
         T sum{};
@@ -99,8 +99,8 @@ constexpr vector<T, Rows> operator*(matrix<T, Rows, Cols> const &m, vector<T, Co
 }
 
 template <typename T, std::size_t Rows, std::size_t Mid, std::size_t Cols>
-constexpr matrix<T, Rows, Cols> operator*(matrix<T, Rows, Mid> const &a,
-                                          matrix<T, Mid, Cols> const &b) {
+constexpr matrix<T, Rows, Cols> operator * (matrix<T, Rows, Mid> const & a,
+                                          matrix<T, Mid, Cols> const & b) {
     matrix<T, Rows, Cols> result;
     for (std::size_t r = 0; r < Rows; ++r) {
         for (std::size_t c = 0; c < Cols; ++c) {
@@ -115,7 +115,7 @@ constexpr matrix<T, Rows, Cols> operator*(matrix<T, Rows, Mid> const &a,
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr matrix<T, Cols, Rows> transpose(matrix<T, Rows, Cols> const &m) {
+constexpr matrix<T, Cols, Rows> transpose(matrix<T, Rows, Cols> const & m) {
     matrix<T, Cols, Rows> result;
     for (std::size_t r = 0; r < Rows; ++r) {
         for (std::size_t c = 0; c < Cols; ++c) {

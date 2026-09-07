@@ -12,21 +12,21 @@ struct box {
     vector<T, N> min;
     vector<T, N> max;
 
-    friend constexpr bool operator==(box const &, box const &) = default;
+    friend constexpr bool operator == (box const &, box const &) = default;
 };
 
 template <typename T, std::size_t N>
-constexpr vector<T, N> diagonal(box<T, N> const &b) {
+constexpr vector<T, N> diagonal(box<T, N> const & b) {
     return b.max - b.min;
 }
 
 template <typename T, std::size_t N>
-constexpr vector<T, N> center(box<T, N> const &b) {
+constexpr vector<T, N> center(box<T, N> const & b) {
     return (b.min + b.max) / T{2};
 }
 
 template <typename T, std::size_t N>
-constexpr bool empty(box<T, N> const &b) {
+constexpr bool empty(box<T, N> const & b) {
     for (std::size_t i = 0; i < N; ++i) {
         if (b.max[i] <= b.min[i]) {
             return true;
@@ -36,7 +36,7 @@ constexpr bool empty(box<T, N> const &b) {
 }
 
 template <typename T, std::size_t N>
-constexpr bool contains(box<T, N> const &b, vector<T, N> const &p) {
+constexpr bool contains(box<T, N> const & b, vector<T, N> const & p) {
     for (std::size_t i = 0; i < N; ++i) {
         if (p[i] < b.min[i] || p[i] > b.max[i]) {
             return false;
@@ -46,7 +46,7 @@ constexpr bool contains(box<T, N> const &b, vector<T, N> const &p) {
 }
 
 template <typename T, std::size_t N>
-constexpr box<T, N> &operator&=(box<T, N> &a, box<T, N> const &b) {
+constexpr box<T, N> & operator &= (box<T, N> & a, box<T, N> const & b) {
     for (std::size_t i = 0; i < N; ++i) {
         make_max(a.min[i], b.min[i]);
         make_min(a.max[i], b.max[i]);
@@ -55,7 +55,7 @@ constexpr box<T, N> &operator&=(box<T, N> &a, box<T, N> const &b) {
 }
 
 template <typename T, std::size_t N>
-constexpr box<T, N> &operator|=(box<T, N> &a, box<T, N> const &b) {
+constexpr box<T, N> & operator |= (box<T, N> & a, box<T, N> const & b) {
     for (std::size_t i = 0; i < N; ++i) {
         make_min(a.min[i], b.min[i]);
         make_max(a.max[i], b.max[i]);
@@ -64,7 +64,7 @@ constexpr box<T, N> &operator|=(box<T, N> &a, box<T, N> const &b) {
 }
 
 template <typename T, std::size_t N>
-constexpr box<T, N> &operator|=(box<T, N> &a, vector<T, N> const &p) {
+constexpr box<T, N> & operator |= (box<T, N> & a, vector<T, N> const & p) {
     for (std::size_t i = 0; i < N; ++i) {
         make_min(a.min[i], p[i]);
         make_max(a.max[i], p[i]);
@@ -73,22 +73,22 @@ constexpr box<T, N> &operator|=(box<T, N> &a, vector<T, N> const &p) {
 }
 
 template <typename T, std::size_t N>
-constexpr box<T, N> operator&(box<T, N> a, box<T, N> const &b) {
+constexpr box<T, N> operator & (box<T, N> a, box<T, N> const & b) {
     return a &= b;
 }
 
 template <typename T, std::size_t N>
-constexpr box<T, N> operator|(box<T, N> a, box<T, N> const &b) {
+constexpr box<T, N> operator | (box<T, N> a, box<T, N> const & b) {
     return a |= b;
 }
 
 template <typename T, std::size_t N>
-constexpr box<T, N> operator|(box<T, N> a, vector<T, N> const &p) {
+constexpr box<T, N> operator | (box<T, N> a, vector<T, N> const & p) {
     return a |= p;
 }
 
 template <typename T, std::size_t N>
-constexpr box<T, N> operator|(vector<T, N> const &p, box<T, N> a) {
+constexpr box<T, N> operator | (vector<T, N> const & p, box<T, N> a) {
     return a |= p;
 }
 

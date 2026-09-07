@@ -9,7 +9,7 @@
 namespace math {
 
 template <typename T, std::size_t N>
-constexpr matrix<T, N + 1, N + 1> translation(vector<T, N> const &t) {
+constexpr matrix<T, N + 1, N + 1> translation(vector<T, N> const & t) {
     auto m = matrix<T, N + 1, N + 1>::identity();
     for (std::size_t i = 0; i < N; ++i) {
         m[i][N] = t[i];
@@ -18,7 +18,7 @@ constexpr matrix<T, N + 1, N + 1> translation(vector<T, N> const &t) {
 }
 
 template <typename T, std::size_t N>
-constexpr matrix<T, N + 1, N + 1> scale(vector<T, N> const &s) {
+constexpr matrix<T, N + 1, N + 1> scale(vector<T, N> const & s) {
     auto m = matrix<T, N + 1, N + 1>::identity();
     for (std::size_t i = 0; i < N; ++i) {
         m[i][i] = s[i];
@@ -27,7 +27,7 @@ constexpr matrix<T, N + 1, N + 1> scale(vector<T, N> const &s) {
 }
 
 template <typename T>
-constexpr matrix<T, 4, 4> rotation(quaternion<T> const &q) {
+constexpr matrix<T, 4, 4> rotation(quaternion<T> const & q) {
     T const xx = q.x() * q.x();
     T const yy = q.y() * q.y();
     T const zz = q.z() * q.z();

@@ -27,7 +27,7 @@ Point in_place_bezier(std::span<Point> points, T t) {
 }
 
 template <typename Points, typename T>
-auto bezier(Points const &points, T t) {
+auto bezier(Points const & points, T t) {
     using std::begin;
     using std::end;
     using point = std::remove_cvref_t<decltype(*begin(points))>;

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <stdexcept>
 
-std::string loadFile(std::filesystem::path const &path) {
+std::string loadFile(std::filesystem::path const & path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) {
         throw std::runtime_error("Failed to open " + path.string());

@@ -3,7 +3,7 @@
 namespace math {
 
 template <typename T>
-constexpr bool make_min(T &a, T b) {
+constexpr bool make_min(T & a, T b) {
     if (b < a) {
         a = b;
         return true;
@@ -12,7 +12,7 @@ constexpr bool make_min(T &a, T b) {
 }
 
 template <typename T>
-constexpr bool make_max(T &a, T b) {
+constexpr bool make_max(T & a, T b) {
     if (b > a) {
         a = b;
         return true;

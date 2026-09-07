@@ -3,4 +3,4 @@
 #include <filesystem>
 #include <string>
 
-std::string loadFile(std::filesystem::path const &path);
+std::string loadFile(std::filesystem::path const & path);

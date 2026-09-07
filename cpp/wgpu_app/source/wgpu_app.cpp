@@ -61,7 +61,7 @@ bool isSrgbFormat(WGPUTextureFormat format) {
     }
 }
 
-WGPUTextureFormat selectSurfaceFormat(WGPUSurfaceCapabilities const &capabilities, bool srgb) {
+WGPUTextureFormat selectSurfaceFormat(WGPUSurfaceCapabilities const & capabilities, bool srgb) {
     for (size_t i = 0; i < capabilities.formatCount; ++i) {
         if (isSrgbFormat(capabilities.formats[i]) == srgb) {
             return capabilities.formats[i];
@@ -85,7 +85,7 @@ WGPUAdapter requestAdapter(WGPUInstance instance, WGPUSurface surface) {
     callback.userdata1 = &result;
     callback.callback = [](WGPURequestAdapterStatus status, WGPUAdapter adapter,
                            WGPUStringView message, void *userdata, void *) {
-        auto &result = *static_cast<Result *>(userdata);
+        auto & result = *static_cast<Result *>(userdata);
         if (status == WGPURequestAdapterStatus_Success) {
             result.adapter = adapter;
         } else {
@@ -123,7 +123,7 @@ WGPUDevice requestDevice(WGPUAdapter adapter) {
     callback.userdata1 = &result;
     callback.callback = [](WGPURequestDeviceStatus status, WGPUDevice device,
                            WGPUStringView message, void *userdata, void *) {
-        auto &result = *static_cast<Result *>(userdata);
+        auto & result = *static_cast<Result *>(userdata);
         if (status == WGPURequestDeviceStatus_Success) {
             result.device = device;
         } else {
