@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math/utils.hpp>
+
 #include <cmath>
 #include <cstddef>
 #include <type_traits>
@@ -155,6 +157,28 @@ constexpr vector<T, 3> cross(vector<T, 3> const & a, vector<T, 3> const & b) {
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0],
     };
+}
+
+// v0 and v1 are assumed to be normalized
+template <typename T, std::size_t N>
+constexpr vector<T, N> slerp(vector<T, N> const & v0, vector<T, N> const & v1, T const & t)
+{
+    using std::sin;
+    using std::acos;
+
+    auto const d = dot(v0, v1);
+
+    // Prevent division by zero
+    if (d >= T{1})
+        return lerp(v0, v1, t);
+
+    auto const angle = acos(d);
+
+    // NB: the case of omega ~ pi is ambiguous and isn't handled in any special way
+    auto const s = sin(angle);
+    auto const w0 = std::sin((1 - t) * angle) / s;
+    auto const w1 = (sin(t * angle) / s);
+    return w0 * v0 + w1 * v1;
 }
 
 }  // namespace math

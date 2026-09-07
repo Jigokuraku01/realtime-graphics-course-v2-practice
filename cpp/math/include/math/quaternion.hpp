@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math/vector.hpp>
+#include <math/utils.hpp>
 
 #include <cmath>
 
@@ -142,6 +143,30 @@ constexpr vector<T, 3> rotate(quaternion<T> const & q, vector<T, 3> const & v) {
     vector<T, 3> const u{q.x(), q.y(), q.z()};
     vector<T, 3> const t = cross(u, v) * T{2};
     return v + t * q.w() + cross(u, t);
+}
+
+template <typename T>
+constexpr quaternion<T> slerp(quaternion<T> const & q0, quaternion<T> const & q1, T const & t)
+{
+    using std::sin;
+    using std::acos;
+    using std::abs;
+
+    auto const d = dot(q0.coords, q1.coords);
+
+    // Prevent division by zero
+    if (d >= T{ 1})
+        return {lerp(q0.coords,  q1.coords, t)};
+    if (d <= T{-1})
+        return {lerp(q0.coords, -q1.coords, t)};
+
+    auto const angle = acos(abs(d));
+
+    // NB: the case of omega ~ pi is ambiguous and isn't handled in any special way
+    auto const s = sin(angle);
+    auto const w0 = sin((1 - t) * angle) / s;
+    auto const w1 = sin(t * angle) / s * ((d > T{0}) ? T{1} : -T{1});
+    return {q0.coords * w0 + q1.coords * w1};
 }
 
 }  // namespace math
