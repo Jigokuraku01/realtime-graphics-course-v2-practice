@@ -1,7 +1,7 @@
 #pragma once
 
 #include <math/detail/alloca.hpp>
-#include <math/vector.hpp>
+#include <math/utils.hpp>
 
 #include <algorithm>
 #include <cassert>

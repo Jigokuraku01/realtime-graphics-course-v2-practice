@@ -148,11 +148,6 @@ vector<T, N> normalized(vector<T, N> const &v) {
     return v / static_cast<T>(length(v));
 }
 
-template <typename T, std::size_t N>
-constexpr vector<T, N> lerp(vector<T, N> const &a, vector<T, N> const &b, T t) {
-    return a * (T{1} - t) + b * t;
-}
-
 template <typename T>
 constexpr vector<T, 3> cross(vector<T, 3> const &a, vector<T, 3> const &b) {
     return {

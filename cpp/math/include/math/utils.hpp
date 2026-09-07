@@ -27,6 +27,11 @@ constexpr T clamp(T x, T low, T high) {
     return x;
 }
 
+template <typename X, typename T>
+constexpr auto lerp(X const & a, X const & b, T t) {
+    return a + (b - a) * t;
+}
+
 template <typename T>
 constexpr T smoothstep(T edge0, T edge1, T x) {
     T const t = clamp((x - edge0) / (edge1 - edge0), T{0}, T{1});

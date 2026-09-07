@@ -138,11 +138,6 @@ constexpr quaternion<T> inverse(quaternion<T> const &q) {
 }
 
 template <typename T>
-constexpr quaternion<T> lerp(quaternion<T> const &a, quaternion<T> const &b, T t) {
-    return {lerp(a.data, b.data, t)};
-}
-
-template <typename T>
 constexpr vector<T, 3> rotate(quaternion<T> const &q, vector<T, 3> const &v) {
     vector<T, 3> const u{q.x(), q.y(), q.z()};
     vector<T, 3> const t = cross(u, v) * T{2};
