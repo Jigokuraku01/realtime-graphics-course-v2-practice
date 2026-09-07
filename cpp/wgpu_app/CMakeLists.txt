@@ -25,6 +25,9 @@ if(APPLE)
 endif()
 
 add_library(wgpu_app
+    include/wgpu_app.hpp
+    include/file_utils.hpp
+    include/obj_loader.hpp
     source/wgpu_app.cpp
     source/file_utils.cpp
     source/obj_loader.cpp
