@@ -192,6 +192,7 @@ void WgpuApp::init(std::string_view title, int width, int height, bool srgb) {
     surfaceSource.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
     surfaceSource.hinstance = hinstance;
     surfaceSource.hwnd = hwnd;
+    surfaceDescriptor.nextInChain = &surfaceSource.chain;
 
     surface_ = wgpuInstanceCreateSurface(instance_, &surfaceDescriptor);
 #elif defined(__APPLE__)
