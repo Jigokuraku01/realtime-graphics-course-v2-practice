@@ -140,7 +140,7 @@ WGPUDevice requestDevice(WGPUAdapter adapter) {
 
 }  // namespace
 
-WgpuApp::WgpuApp(std::string_view title, int width, int height, bool srgb) {
+WgpuApp::WgpuApp(std::string const & title, int width, int height, bool srgb) {
     try {
         init(title, width, height, srgb);
     } catch (...) {
@@ -149,7 +149,7 @@ WgpuApp::WgpuApp(std::string_view title, int width, int height, bool srgb) {
     }
 }
 
-void WgpuApp::init(std::string_view title, int width, int height, bool srgb) {
+void WgpuApp::init(std::string const & title, int width, int height, bool srgb) {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         throw std::runtime_error(std::string("SDL_Init: ") + SDL_GetError());
     }
@@ -162,8 +162,7 @@ void WgpuApp::init(std::string_view title, int width, int height, bool srgb) {
         windowFlags |= SDL_WINDOW_VULKAN;
     #endif
 
-    std::string titleStr(title);
-    window_ = SDL_CreateWindow(titleStr.c_str(), width, height, windowFlags);
+    window_ = SDL_CreateWindow(title.data(), width, height, windowFlags);
     if (!window_) {
         throw std::runtime_error(std::string("SDL_CreateWindow: ") + SDL_GetError());
     }

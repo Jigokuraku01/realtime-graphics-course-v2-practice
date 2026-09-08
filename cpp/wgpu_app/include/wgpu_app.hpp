@@ -8,7 +8,7 @@
 
 class WgpuApp {
 public:
-    WgpuApp(std::string_view title, int width, int height, bool srgb);
+    WgpuApp(std::string const & title, int width, int height, bool srgb);
     ~WgpuApp();
 
     WgpuApp(const WgpuApp &) = delete;
@@ -27,7 +27,7 @@ public:
     WGPUSurface surface() const { return surface_; }
 
 private:
-    void init(std::string_view title, int width, int height, bool srgb);
+    void init(std::string const & title, int width, int height, bool srgb);
     void destroy();
 
     SDL_Window *window_ = nullptr;
