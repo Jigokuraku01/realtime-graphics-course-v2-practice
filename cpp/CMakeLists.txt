@@ -12,3 +12,4 @@ add_subdirectory(wgpu_app)
 include(cmake/AddPractice.cmake)
 
 add_subdirectory(practice01)
+add_subdirectory(practice02)

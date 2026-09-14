@@ -1,11 +1,15 @@
 use std::sync::Arc;
+use std::collections::HashSet;
 
 use wgpu::CurrentSurfaceTexture;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::WindowEvent;
+use winit::event::{WindowEvent, ElementState};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowAttributes, WindowId};
+use winit::keyboard::PhysicalKey;
+
+pub use winit::keyboard::KeyCode;
 
 #[derive(Clone, Copy)]
 pub struct AppConfig {
@@ -21,6 +25,7 @@ pub struct WgpuState {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    pub keydown: HashSet<KeyCode>,
 }
 
 impl WgpuState {
@@ -103,12 +108,15 @@ impl WgpuState {
 
         surface.configure(&device, &config);
 
+        let keydown = HashSet::new();
+
         Self {
             window,
             surface,
             device,
             queue,
             config,
+            keydown,
         }
     }
 
@@ -116,8 +124,12 @@ impl WgpuState {
         self.config.format
     }
 
-    pub fn size(&self) -> PhysicalSize<u32> {
-        PhysicalSize::new(self.config.width, self.config.height)
+    pub fn width(&self) -> u32 {
+        self.config.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.config.height
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
@@ -186,6 +198,18 @@ pub fn run<P: WgpuApp>(config: AppConfig) {
                 WindowEvent::RedrawRequested => {
                     practice.redraw(gpu);
                     gpu.window.request_redraw();
+                }
+                WindowEvent::KeyboardInput { event, .. } => {
+                    if let PhysicalKey::Code(key_code) = event.physical_key {
+                        match event.state {
+                            ElementState::Pressed => {
+                                gpu.keydown.insert(key_code);
+                            }
+                            ElementState::Released => {
+                                gpu.keydown.remove(&key_code);
+                            }
+                        }
+                    }
                 }
                 _ => {}
             }
