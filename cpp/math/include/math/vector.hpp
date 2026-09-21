@@ -34,6 +34,15 @@ struct vector {
     friend constexpr bool operator == (vector const &, vector const &) = default;
 };
 
+template <typename H, typename T, std::size_t N>
+constexpr vector<H, N> cast(vector<T, N> const & a) {
+    vector<H, N> result;
+    for (std::size_t i = 0; i < N; ++i) {
+        result[i] = static_cast<H>(a[i]);
+    }
+    return result;
+}
+
 template <typename T, std::size_t N>
 constexpr vector<T, N> & operator += (vector<T, N> & a, vector<T, N> const & b) {
     for (std::size_t i = 0; i < N; ++i) {
