@@ -13,3 +13,4 @@ include(cmake/AddPractice.cmake)
 
 add_subdirectory(practice01)
 add_subdirectory(practice02)
+add_subdirectory(practice03)

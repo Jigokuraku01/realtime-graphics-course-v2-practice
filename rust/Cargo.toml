@@ -1,5 +1,10 @@
 [workspace]
-members = ["wgpu_app", "practice01", "practice02"]
+members = [
+    "wgpu_app",
+    "practice01",
+    "practice02",
+    "practice03",
+]
 resolver = "2"
 
 [workspace.dependencies]
