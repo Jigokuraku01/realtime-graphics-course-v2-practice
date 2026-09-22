@@ -136,6 +136,10 @@ impl WgpuState {
         self.config.height
     }
 
+    pub fn pixel_density(&self) -> f32 {
+        self.window.scale_factor() as f32
+    }
+
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         if new_size.width == 0 || new_size.height == 0 {
             return;
@@ -224,7 +228,7 @@ pub fn run<P: WgpuApp>(config: AppConfig) {
                     }
                 },
                 WindowEvent::CursorMoved { position, .. } => {
-                    gpu.mouse = Vec2::new(position.x as f32, position.y as f32);
+                    gpu.mouse = Vec2::new(position.x as f32, position.y as f32) * gpu.pixel_density();
                 },
                 WindowEvent::MouseInput { state, button, .. } => {
                     match state {

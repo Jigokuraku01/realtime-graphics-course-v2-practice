@@ -286,6 +286,10 @@ void WgpuApp::destroy() {
     SDL_Quit();
 }
 
+float WgpuApp::pixelDensity() const {
+    return SDL_GetWindowPixelDensity(window_);
+}
+
 void WgpuApp::resize(int width, int height) {
     if (width <= 0 || height <= 0) {
         return;
