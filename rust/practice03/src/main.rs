@@ -3,6 +3,7 @@ use std::path::Path;
 use std::time::Instant;
 use std::vec::Vec;
 use glam::Vec2;
+use bytemuck::{Pod, Zeroable};
 
 use wgpu_app::{run, AppConfig, WgpuApp, WgpuState, KeyCode};
 
@@ -20,7 +21,7 @@ fn load_shader_module(
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 struct Vertex {
     position: Vec2,
     color: [u8; 4],
