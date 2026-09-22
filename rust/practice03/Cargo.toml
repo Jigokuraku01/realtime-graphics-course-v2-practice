@@ -7,4 +7,4 @@ edition = "2024"
 wgpu = { workspace = true }
 bytemuck = { workspace = true }
 wgpu_app = { path = "../wgpu_app" }
-glam.workspace = true
+glam = { workspace = true, features = ["bytemuck"] }
