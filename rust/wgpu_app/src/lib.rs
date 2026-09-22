@@ -8,8 +8,10 @@ use winit::event::{WindowEvent, ElementState};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowAttributes, WindowId};
 use winit::keyboard::PhysicalKey;
+use glam::Vec2;
 
 pub use winit::keyboard::KeyCode;
+pub use winit::event::MouseButton;
 
 #[derive(Clone, Copy)]
 pub struct AppConfig {
@@ -26,6 +28,8 @@ pub struct WgpuState {
     pub queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub keydown: HashSet<KeyCode>,
+    pub mouse: Vec2,
+    pub mousedown: HashSet<MouseButton>,
 }
 
 impl WgpuState {
@@ -108,15 +112,15 @@ impl WgpuState {
 
         surface.configure(&device, &config);
 
-        let keydown = HashSet::new();
-
         Self {
             window,
             surface,
             device,
             queue,
             config,
-            keydown,
+            keydown: HashSet::new(),
+            mouse: Vec2::new(0.0, 0.0),
+            mousedown: HashSet::new(),
         }
     }
 
@@ -161,6 +165,12 @@ impl WgpuState {
 pub trait WgpuApp {
     fn new(gpu: &WgpuState) -> Self;
     fn redraw(&mut self, gpu: &mut WgpuState);
+
+    fn on_keydown(&mut self, _gpu: &mut WgpuState, _key: KeyCode) {}
+    fn on_keyup(&mut self, _gpu: &mut WgpuState, _key: KeyCode) {}
+
+    fn on_mousedown(&mut self, _gpu: &mut WgpuState, _button: MouseButton) {}
+    fn on_mouseup(&mut self, _gpu: &mut WgpuState, _button: MouseButton) {}
 }
 
 pub fn run<P: WgpuApp>(config: AppConfig) {
@@ -204,13 +214,30 @@ pub fn run<P: WgpuApp>(config: AppConfig) {
                         match event.state {
                             ElementState::Pressed => {
                                 gpu.keydown.insert(key_code);
+                                practice.on_keydown(gpu, key_code);
                             }
                             ElementState::Released => {
                                 gpu.keydown.remove(&key_code);
+                                practice.on_keyup(gpu, key_code);
                             }
                         }
                     }
-                }
+                },
+                WindowEvent::CursorMoved { position, .. } => {
+                    gpu.mouse = Vec2::new(position.x as f32, position.y as f32);
+                },
+                WindowEvent::MouseInput { state, button, .. } => {
+                    match state {
+                        ElementState::Pressed => {
+                            gpu.mousedown.insert(button);
+                            practice.on_mousedown(gpu, button);
+                        }
+                        ElementState::Released => {
+                            gpu.mousedown.remove(&button);
+                            practice.on_mouseup(gpu, button);
+                        }
+                    }
+                },
                 _ => {}
             }
         }
