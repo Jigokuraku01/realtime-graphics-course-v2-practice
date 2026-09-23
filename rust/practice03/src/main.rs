@@ -5,7 +5,7 @@ use std::vec::Vec;
 use glam::Vec2;
 use bytemuck::{Pod, Zeroable};
 
-use wgpu_app::{run, AppConfig, WgpuApp, WgpuState, KeyCode};
+use wgpu_app::{run, AppConfig, WgpuApp, WgpuState, KeyCode, MouseButton};
 
 const PROJECT_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -142,6 +142,24 @@ impl WgpuApp for Practice03 {
 
         app.queue.submit(std::iter::once(encoder.finish()));
         app.queue.present(surface_texture);
+    }
+
+    fn on_keydown(&mut self, gpu: &mut WgpuState, key: KeyCode) {
+        if key == KeyCode::ArrowLeft {
+            // Нажата стрелка влево
+        }
+        if key == KeyCode::ArrowRight {
+            // Нажата стрелка вправо
+        }
+    }
+
+    fn on_mousedown(&mut self, gpu: &mut WgpuState, button: MouseButton) {
+        if button == MouseButton::Left {
+            // Нажата левая кнопка мыши
+        }
+        if button == MouseButton::Right {
+            // Нажата правая кнопка мыши
+        }
     }
 }
 

@@ -125,7 +125,7 @@ int main() try {
                 }
                 break;
             case SDL_EVENT_MOUSE_MOTION:
-                mouse = {event.motion.x, event.motion.y};
+                mouse = math::vector2f{event.motion.x, event.motion.y} * app.pixelDensity();
                 break;
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
                 if (event.button.button == SDL_BUTTON_LEFT) {
