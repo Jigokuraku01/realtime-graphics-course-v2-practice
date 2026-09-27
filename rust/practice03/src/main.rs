@@ -1,11 +1,11 @@
+use bytemuck::{Pod, Zeroable};
+use glam::Vec2;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
 use std::vec::Vec;
-use glam::Vec2;
-use bytemuck::{Pod, Zeroable};
 
-use wgpu_app::{run, AppConfig, WgpuApp, WgpuState, KeyCode, MouseButton};
+use wgpu_app::{AppConfig, KeyCode, MouseButton, WgpuApp, WgpuState, run};
 
 const PROJECT_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -25,12 +25,14 @@ fn load_shader_module(
 struct Vertex {
     position: Vec2,
     color: [u8; 4],
+    distance: f32,
 }
 
 fn lerp(v0: &Vertex, v1: &Vertex, t: f32) -> Vertex {
     Vertex {
         position: v0.position.lerp(v1.position, t),
         color: v0.color,
+        distance: 0.0,
     }
 }
 
@@ -46,11 +48,26 @@ fn bezier(vertices: &[Vertex], t: f32) -> Vertex {
     temp[0]
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct Immediates {
+    view: [f32; 16],
+    is_dotted: u32,
+    time: f32,
+}
+
 struct Practice03 {
     pipeline: wgpu::RenderPipeline,
     last_frame_start: Instant,
     time: f32,
     vertices: Vec<Vertex>,
+    buffer: wgpu::Buffer,
+    buffer_capacity: u64,
+    are_vertices_changed: bool,
+    are_bezier_vertices_changed: bool,
+    quality: u32,
+    bezier_vertices: Vec<Vertex>,
+    bezier_buffer: Option<wgpu::Buffer>,
 }
 
 impl WgpuApp for Practice03 {
@@ -58,47 +75,91 @@ impl WgpuApp for Practice03 {
         let shader = load_shader_module(&app.device, Path::new(PROJECT_ROOT).join("shader.wgsl"))
             .expect("failed to load shader");
 
-        let pipeline_layout = app.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            immediate_size: 64,
-            ..Default::default()
-        });
-
-        let pipeline = app.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertexMain"),
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragmentMain"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: app.surface_format(),
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+        let pipeline_layout = app
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                immediate_size: std::mem::size_of::<Immediates>() as u32,
                 ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: Default::default(),
-            multiview_mask: None,
-            cache: None,
+            });
+
+        let pipeline = app
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: None,
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vertexMain"),
+                    buffers: &[Some(wgpu::VertexBufferLayout {
+                        array_stride: std::mem::size_of::<Vertex>() as u64,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x2,
+                                offset: 0,
+                                shader_location: 0,
+                            },
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Unorm8x4,
+                                offset: std::mem::size_of::<Vec2>() as u64,
+                                shader_location: 1,
+                            },
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32,
+                                offset: std::mem::size_of::<Vec2>() as u64
+                                    + std::mem::size_of::<[u8; 4]>() as u64,
+                                shader_location: 2,
+                            },
+                        ],
+                    })],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fragmentMain"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: app.surface_format(),
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::LineStrip,
+                    ..Default::default()
+                },
+                depth_stencil: None,
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: None,
+            });
+
+        let vertices = vec![];
+
+        let buffer_capacity = 1;
+
+        let buffer = app.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: buffer_capacity * std::mem::size_of::<Vertex>() as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
-        let vertices = vec![
-            Vertex{ position: Vec2::new(0.0, 0.0), color: [125, 207, 182, 255] },
-            Vertex{ position: Vec2::new(0.5, 0.0), color: [251, 209, 162, 255] },
-            Vertex{ position: Vec2::new(0.0, 0.5), color: [247, 146,  86, 255] },
-        ];
+        let quality = 4;
 
-        Self { pipeline, last_frame_start: Instant::now(), time: 0.0, vertices }
+        Self {
+            pipeline,
+            last_frame_start: Instant::now(),
+            time: 0.0,
+            vertices: vertices,
+            buffer: buffer,
+            buffer_capacity: buffer_capacity,
+            are_vertices_changed: false,
+            are_bezier_vertices_changed: false,
+            quality: quality,
+            bezier_vertices: Vec::new(),
+            bezier_buffer: None,
+        }
     }
 
     fn redraw(&mut self, app: &mut WgpuState) {
@@ -111,14 +172,32 @@ impl WgpuApp for Practice03 {
         self.time += dt;
         self.last_frame_start = now;
 
-        let view_matrix: [f32; 16] = [
-            1.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 1.0,
-        ];
+        let mut immediates = Immediates {
+            view: [
+                2.0 / (app.width() as f32),
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                -2.0 / (app.height() as f32),
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                -1.0,
+                1.0,
+                0.0,
+                1.0,
+            ],
+            is_dotted: 0,
+            time: self.time,
+        };
 
-        let target_view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let target_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = app.device.create_command_encoder(&Default::default());
 
@@ -129,15 +208,77 @@ impl WgpuApp for Practice03 {
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color{r: 0.07, g: 0.21, b: 0.30, a: 1.0}),
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.07,
+                            g: 0.21,
+                            b: 0.30,
+                            a: 1.0,
+                        }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
                 ..Default::default()
             });
             render_pass.set_pipeline(&self.pipeline);
-            render_pass.set_immediates(0, bytemuck::bytes_of(&view_matrix));
-            render_pass.draw(0..3, 0..1);
+            if !self.vertices.is_empty() {
+                if self.are_vertices_changed {
+                    while self.buffer_capacity < self.vertices.len() as u64 {
+                        self.buffer_capacity *= 2;
+                    }
+                    self.buffer = app.device.create_buffer(&wgpu::BufferDescriptor {
+                        label: None,
+                        size: self.buffer_capacity * std::mem::size_of::<Vertex>() as u64,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        mapped_at_creation: false,
+                    });
+                    self.are_vertices_changed = false;
+                    app.queue
+                        .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.vertices));
+                }
+                if self.are_bezier_vertices_changed {
+                    let mut distance = 0.0;
+                    let mut previous_position: Option<Vec2> = None;
+                    self.are_bezier_vertices_changed = false;
+                    let vertices_sections_count = (self.vertices.len() - 1) as u32;
+                    let bezie_sections_count = vertices_sections_count * self.quality;
+                    let bezier_vertices_count = bezie_sections_count + 1;
+                    self.bezier_vertices.clear();
+                    self.bezier_vertices
+                        .extend((0..bezier_vertices_count).map(|i| {
+                            let t = i as f32 / bezie_sections_count as f32;
+                            let mut v = bezier(&self.vertices, t);
+                            v.color = [255, 200, 60, 255];
+                            v.distance = distance;
+                            if let Some(previous_position) = previous_position {
+                                distance += v.position.distance(previous_position)
+                            }
+                            v.distance = distance;
+                            previous_position = Some(v.position);
+                            v
+                        }));
+                    self.bezier_buffer = Some(app.device.create_buffer(&wgpu::BufferDescriptor {
+                        label: None,
+                        size: self.bezier_vertices.len() as u64
+                            * std::mem::size_of::<Vertex>() as u64,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        mapped_at_creation: false,
+                    }));
+                    app.queue.write_buffer(
+                        self.bezier_buffer.as_ref().unwrap(),
+                        0,
+                        bytemuck::cast_slice(&self.bezier_vertices),
+                    );
+                }
+                render_pass.set_immediates(0, bytemuck::bytes_of(&immediates));
+                render_pass.set_vertex_buffer(0, self.buffer.slice(..));
+                render_pass.draw(0..self.vertices.len() as u32, 0..1);
+                if let Some(bezier_buffer) = self.bezier_buffer.as_ref() {
+                    immediates.is_dotted = 1;
+                    render_pass.set_immediates(0, bytemuck::bytes_of(&immediates));
+                    render_pass.set_vertex_buffer(0, bezier_buffer.slice(..));
+                    render_pass.draw(0..self.bezier_vertices.len() as u32, 0..1);
+                }
+            }
         }
 
         app.queue.submit(std::iter::once(encoder.finish()));
@@ -146,19 +287,31 @@ impl WgpuApp for Practice03 {
 
     fn on_keydown(&mut self, gpu: &mut WgpuState, key: KeyCode) {
         if key == KeyCode::ArrowLeft {
-            // Нажата стрелка влево
+            if self.quality > 1 {
+                self.quality -= 1;
+            }
+            self.are_bezier_vertices_changed = true;
         }
         if key == KeyCode::ArrowRight {
-            // Нажата стрелка вправо
+            self.quality += 1;
+            self.are_bezier_vertices_changed = true;
         }
     }
 
     fn on_mousedown(&mut self, gpu: &mut WgpuState, button: MouseButton) {
         if button == MouseButton::Left {
-            // Нажата левая кнопка мыши
+            self.vertices.push(Vertex {
+                position: Vec2::new(gpu.mouse.x, gpu.mouse.y),
+                color: [171, 92, 255, 255],
+                distance: 0.0,
+            });
+            self.are_vertices_changed = true;
+            self.are_bezier_vertices_changed = true;
         }
         if button == MouseButton::Right {
-            // Нажата правая кнопка мыши
+            self.vertices.pop();
+            self.are_vertices_changed = true;
+            self.are_bezier_vertices_changed = true;
         }
     }
 }
