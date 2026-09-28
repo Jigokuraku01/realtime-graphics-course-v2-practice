@@ -2194,6 +2194,7 @@ dependencies = [
 name = "wgpu_app"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "glam",
  "pollster",
  "wgpu",
