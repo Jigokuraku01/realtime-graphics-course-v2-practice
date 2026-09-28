@@ -3,7 +3,7 @@
 #include <SDL3/SDL.h>
 #include <webgpu.h>
 
-#include <string_view>
+#include <string>
 #include <optional>
 
 class WgpuApp {
