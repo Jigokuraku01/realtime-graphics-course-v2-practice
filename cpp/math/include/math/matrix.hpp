@@ -12,6 +12,13 @@ struct matrix {
 
     constexpr matrix() = default;
 
+    template <typename ... Args>
+        requires (sizeof...(Args) == Rows * Cols && (std::is_convertible_v<Args, T> && ...))
+    constexpr matrix(Args... args) {
+        T *ptr = data[0];
+        ((*ptr++ = args), ...);
+    }
+
     constexpr T (& operator [] (std::size_t row))[Cols] { return data[row]; }
     constexpr T const (& operator [] (std::size_t row) const)[Cols] { return data[row]; }
 

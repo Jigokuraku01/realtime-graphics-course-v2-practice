@@ -1,3 +1,7 @@
+mod obj_loader;
+
+pub use obj_loader::{ObjVertex, ObjMesh, load_obj};
+
 use std::sync::Arc;
 use std::collections::HashSet;
 
