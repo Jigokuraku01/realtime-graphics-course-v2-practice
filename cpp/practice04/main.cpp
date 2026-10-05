@@ -55,7 +55,7 @@ WGPURenderPipeline createPipeline(WGPUDevice device, WGPUShaderModule shaderModu
 }
 
 int main() try {
-    WgpuApp app("Practice03", 1280, 720, true);
+    WgpuApp app("Practice04", 1280, 720, true);
 
     WGPUShaderModule shaderModule = createShaderModule(app.device(), projectRoot / "shader.wgsl");
     WGPURenderPipeline renderPipeline = createPipeline(app.device(), shaderModule, app.surfaceFormat());
