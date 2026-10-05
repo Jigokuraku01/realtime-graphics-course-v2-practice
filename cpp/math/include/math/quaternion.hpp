@@ -20,6 +20,10 @@ struct quaternion {
     constexpr T & w() { return data.w(); }
     constexpr T const & w() const { return data.w(); }
 
+    static constexpr quaternion zero() {
+        return {};
+    }
+
     static constexpr quaternion identity() {
         return {{T{0}, T{0}, T{0}, T{1}}};
     }

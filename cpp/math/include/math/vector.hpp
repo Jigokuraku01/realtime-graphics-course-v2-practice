@@ -31,6 +31,10 @@ struct vector {
     constexpr T & w() requires (N >= 4) { return data[3]; }
     constexpr T const & w() const requires (N >= 4) { return data[3]; }
 
+    static constexpr vector zero() {
+        return vector{};
+    }
+
     friend constexpr bool operator == (vector const &, vector const &) = default;
 };
 

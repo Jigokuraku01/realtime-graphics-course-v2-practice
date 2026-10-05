@@ -27,6 +27,10 @@ struct matrix {
         return data[row][col];
     }
 
+    static constexpr matrix zero() requires (Rows == Cols) {
+        return matrix{};
+    }
+
     static constexpr matrix identity() requires (Rows == Cols) {
         matrix m{};
         for (std::size_t i = 0; i < Rows; ++i) {
