@@ -8,9 +8,9 @@ use std::collections::HashSet;
 use wgpu::CurrentSurfaceTexture;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::{WindowEvent, ElementState};
+use winit::event::{WindowEvent, ElementState, DeviceId, DeviceEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
-use winit::window::{Window, WindowAttributes, WindowId};
+use winit::window::{Window, WindowAttributes, WindowId, CursorGrabMode};
 use winit::keyboard::PhysicalKey;
 use glam::Vec2;
 
@@ -168,6 +168,11 @@ impl WgpuState {
             | CurrentSurfaceTexture::Validation => None,
         }
     }
+
+    pub fn grab_mouse(&mut self, grab: bool) {
+        self.window.set_cursor_visible(!grab);
+        self.window.set_cursor_grab(if grab { CursorGrabMode::Locked } else { CursorGrabMode::None }).ok();
+    }
 }
 
 pub trait WgpuApp {
@@ -179,6 +184,8 @@ pub trait WgpuApp {
 
     fn on_mousedown(&mut self, _gpu: &mut WgpuState, _button: MouseButton) {}
     fn on_mouseup(&mut self, _gpu: &mut WgpuState, _button: MouseButton) {}
+
+    fn on_mousemove(&mut self, _gpu: &mut WgpuState, _dx: f32, _dy: f32) {}
 }
 
 pub fn run<P: WgpuApp>(config: AppConfig) {
@@ -246,6 +253,25 @@ pub fn run<P: WgpuApp>(config: AppConfig) {
                         }
                     }
                 },
+                _ => {}
+            }
+        }
+
+        fn device_event(
+            &mut self,
+            _event_loop: &ActiveEventLoop,
+            _device_id: DeviceId,
+            event: DeviceEvent,
+        ) {
+            let Some((gpu, practice)) = &mut self.state else {
+                return;
+            };
+
+            match event {
+                DeviceEvent::MouseMotion { delta } => {
+                    let (dx, dy) = delta;
+                    practice.on_mousemove(gpu, dx as f32, dy as f32);
+                }
                 _ => {}
             }
         }
