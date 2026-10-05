@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 wgpu = { workspace = true }
 bytemuck = { workspace = true }
-wgpu_app = { path = "../wgpu_app" }
+wgpu_app = { workspace = true }
