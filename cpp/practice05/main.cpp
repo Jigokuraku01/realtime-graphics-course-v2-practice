@@ -10,6 +10,7 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <numbers>
 #include <unordered_set>
 
 static std::filesystem::path const projectRoot = PROJECT_ROOT;
