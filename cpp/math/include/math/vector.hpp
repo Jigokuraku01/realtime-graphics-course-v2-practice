@@ -38,6 +38,9 @@ struct vector {
     friend constexpr bool operator == (vector const &, vector const &) = default;
 };
 
+template <typename ... Args>
+vector(Args...) -> vector<std::common_type_t<Args...>, sizeof...(Args)>;
+
 template <typename H, typename T, std::size_t N>
 constexpr vector<H, N> cast(vector<T, N> const & a) {
     vector<H, N> result;

@@ -40,6 +40,9 @@ struct quaternion {
 };
 
 template <typename T>
+quaternion(vector<T, 4>) -> quaternion<T>;
+
+template <typename T>
 constexpr quaternion<T> & operator += (quaternion<T> & a, quaternion<T> const & b) {
     a.data += b.data;
     return a;
