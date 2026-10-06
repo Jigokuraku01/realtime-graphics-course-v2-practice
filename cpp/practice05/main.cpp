@@ -1,6 +1,8 @@
 #include <wgpu_app.hpp>
 #include <file_utils.hpp>
+#include <image_utils.hpp>
 #include <obj_loader.hpp>
+#include <math/math.hpp>
 
 #include <webgpu.h>
 
@@ -8,11 +10,12 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <numbers>
 #include <unordered_set>
 
 static std::filesystem::path const projectRoot = PROJECT_ROOT;
 
-WGPUShaderModule createShaderModule(WGPUDevice device, std::filesystem::path const &path) {
+WGPUShaderModule createShaderModule(WGPUDevice device, std::filesystem::path const & path) {
     auto const source = loadFile(path);
 
     WGPUShaderSourceWGSL shaderSourceWGSL = WGPU_SHADER_SOURCE_WGSL_INIT;
@@ -22,6 +25,17 @@ WGPUShaderModule createShaderModule(WGPUDevice device, std::filesystem::path con
     shaderModuleDescriptor.nextInChain = &shaderSourceWGSL.chain;
 
     return wgpuDeviceCreateShaderModule(device, &shaderModuleDescriptor);
+}
+
+template <typename T>
+WGPUBuffer loadBuffer(WGPUDevice device, WGPUQueue queue, std::vector<T> const & data, WGPUBufferUsage usage) {
+    WGPUBufferDescriptor bufferDescriptor = WGPU_BUFFER_DESCRIPTOR_INIT;
+    bufferDescriptor.size = data.size() * sizeof(T);
+    bufferDescriptor.usage = usage | WGPUBufferUsage_CopyDst;
+
+    auto buffer = wgpuDeviceCreateBuffer(device, &bufferDescriptor);
+    wgpuQueueWriteBuffer(queue, buffer, 0, data.data(), data.size() * sizeof(T));
+    return buffer;
 }
 
 WGPURenderPipeline createPipeline(WGPUDevice device, WGPUShaderModule shaderModule,
@@ -41,12 +55,34 @@ WGPURenderPipeline createPipeline(WGPUDevice device, WGPUShaderModule shaderModu
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTargetState;
 
+    WGPUVertexAttribute attributes[2] = {WGPU_VERTEX_ATTRIBUTE_INIT, WGPU_VERTEX_ATTRIBUTE_INIT};
+    attributes[0].offset = 0;
+    attributes[0].shaderLocation = 0;
+    attributes[0].format = WGPUVertexFormat_Float32x3;
+    attributes[1].offset = 12;
+    attributes[1].shaderLocation = 1;
+    attributes[1].format = WGPUVertexFormat_Float32x3;
+
+    WGPUVertexBufferLayout vertexBufferLayout = WGPU_VERTEX_BUFFER_LAYOUT_INIT;
+    vertexBufferLayout.arrayStride = sizeof(ObjVertex);
+    vertexBufferLayout.attributeCount = 2;
+    vertexBufferLayout.attributes = attributes;
+    vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
+
+    WGPUDepthStencilState depthStencilState = WGPU_DEPTH_STENCIL_STATE_INIT;
+    depthStencilState.format = WGPUTextureFormat_Depth24Plus;
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
+    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+
     WGPURenderPipelineDescriptor renderPipelineDescriptor = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
     renderPipelineDescriptor.layout = pipelineLayout;
     renderPipelineDescriptor.vertex.module = shaderModule;
     renderPipelineDescriptor.vertex.entryPoint = {"vertexMain", WGPU_STRLEN};
+    renderPipelineDescriptor.vertex.buffers = &vertexBufferLayout;
+    renderPipelineDescriptor.vertex.bufferCount = 1;
     renderPipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     renderPipelineDescriptor.fragment = &fragmentState;
+    renderPipelineDescriptor.depthStencil = &depthStencilState;
 
     WGPURenderPipeline renderPipeline = wgpuDeviceCreateRenderPipeline(device, &renderPipelineDescriptor);
     wgpuPipelineLayoutRelease(pipelineLayout);
@@ -55,15 +91,25 @@ WGPURenderPipeline createPipeline(WGPUDevice device, WGPUShaderModule shaderModu
 }
 
 int main() try {
-    WgpuApp app("Practice04", 1280, 720, true);
+    WgpuApp app("Practice05", 1280, 720, false);
 
     WGPUShaderModule shaderModule = createShaderModule(app.device(), projectRoot / "shader.wgsl");
     WGPURenderPipeline renderPipeline = createPipeline(app.device(), shaderModule, app.surfaceFormat());
 
-    ObjMesh bunny = loadObj(projectRoot / "bunny.obj");
+    ObjMesh cow = loadObj(projectRoot / "cow.obj");
+    Image cowImage = loadImage(projectRoot / "cow.png");
+
+    auto vertexBuffer = loadBuffer(app.device(), app.queue(), cow.vertices, WGPUBufferUsage_Vertex);
+    auto indexBuffer = loadBuffer(app.device(), app.queue(), cow.indices, WGPUBufferUsage_Index);
+
+    WGPUTexture depthBuffer = nullptr;
+    WGPUTextureView depthBufferView = nullptr;
 
     auto lastFrameStart = std::chrono::high_resolution_clock::now();
     float time = 0.f;
+
+    float camera_distance = 3.f;
+    float model_rotation = std::numbers::pi_v<float> * 0.75f;
 
     std::unordered_set<SDL_Keycode> keydown;
 
@@ -92,31 +138,37 @@ int main() try {
             continue;
         }
 
+        if (!depthBuffer || wgpuTextureGetWidth(depthBuffer) != app.width() || wgpuTextureGetHeight(depthBuffer) != app.height()) {
+            WGPUTextureDescriptor depthBufferDescriptor = WGPU_TEXTURE_DESCRIPTOR_INIT;
+            depthBufferDescriptor.usage = WGPUTextureUsage_RenderAttachment;
+            depthBufferDescriptor.dimension = WGPUTextureDimension_2D;
+            depthBufferDescriptor.size = {(std::uint32_t)app.width(), (std::uint32_t)app.height(), 1};
+            depthBufferDescriptor.format = WGPUTextureFormat_Depth24Plus;
+            depthBuffer = wgpuDeviceCreateTexture(app.device(), &depthBufferDescriptor);
+
+            WGPUTextureViewDescriptor depthBufferViewDescriptor = WGPU_TEXTURE_VIEW_DESCRIPTOR_INIT;
+            depthBufferViewDescriptor.format = WGPUTextureFormat_Depth24Plus;
+            depthBufferViewDescriptor.dimension = WGPUTextureViewDimension_2D;
+            depthBufferViewDescriptor.mipLevelCount = 1;
+            depthBufferViewDescriptor.arrayLayerCount = 1;
+            depthBufferViewDescriptor.aspect = WGPUTextureAspect_DepthOnly;
+            depthBufferViewDescriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TransientAttachment;
+            depthBufferView = wgpuTextureCreateView(depthBuffer, &depthBufferViewDescriptor);
+        }
+
         auto const now = std::chrono::high_resolution_clock::now();
         float const dt = std::chrono::duration<float>(now - lastFrameStart).count();
         time += dt;
         lastFrameStart = now;
 
-        math::matrix4f const model{
-            1.f, 0.f, 0.f, 0.f,
-            0.f, 1.f, 0.f, 0.f,
-            0.f, 0.f, 1.f, 0.f,
-            0.f, 0.f, 0.f, 1.f,
-        };
+        if (keydown.contains(SDLK_LEFT)) model_rotation += 5.f * dt;
+        if (keydown.contains(SDLK_RIGHT)) model_rotation -= 5.f * dt;
+        if (keydown.contains(SDLK_UP)) camera_distance += 3.f * dt;
+        if (keydown.contains(SDLK_DOWN)) camera_distance -= 3.f * dt;
 
-        math::matrix4f const view{
-            1.f, 0.f, 0.f, 0.f,
-            0.f, 1.f, 0.f, 0.f,
-            0.f, 0.f, 1.f, 0.f,
-            0.f, 0.f, 0.f, 1.f,
-        };
-
-        math::matrix4f const projection{
-            1.f, 0.f, 0.f, 0.f,
-            0.f, 1.f, 0.f, 0.f,
-            0.f, 0.f, 1.f, 0.f,
-            0.f, 0.f, 0.f, 1.f,
-        };
+        math::matrix4f const model = math::rotation_xz(model_rotation);
+        math::matrix4f const view = math::translation(math::vector{0.f, 0.f, - camera_distance});
+        math::matrix4f const projection = math::perspective(std::numbers::pi_v<float> / 3.f, app.width() * 1.f / app.height(), 0.01f, 100.f);
 
         WGPUTextureView targetView = wgpuTextureCreateView(surfaceTexture->texture, nullptr);
 
@@ -126,11 +178,19 @@ int main() try {
         colorAttachment.view = targetView;
         colorAttachment.loadOp = WGPULoadOp_Clear;
         colorAttachment.storeOp = WGPUStoreOp_Store;
-        colorAttachment.clearValue = {0.01, 0.02, 0.03, 1.0};
+        colorAttachment.clearValue = {0.6, 0.8, 1.0, 1.0};
+
+        WGPURenderPassDepthStencilAttachment depthStencilAttachment = WGPU_RENDER_PASS_DEPTH_STENCIL_ATTACHMENT_INIT;
+        depthStencilAttachment.view = depthBufferView;
+        depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
+        depthStencilAttachment.depthStoreOp = WGPUStoreOp_Discard;
+        depthStencilAttachment.depthClearValue = 1.f;
+        depthStencilAttachment.depthReadOnly = WGPU_FALSE;
 
         WGPURenderPassDescriptor renderPassDescriptor = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
         renderPassDescriptor.colorAttachmentCount = 1;
         renderPassDescriptor.colorAttachments = &colorAttachment;
+        renderPassDescriptor.depthStencilAttachment = &depthStencilAttachment;
         WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
 
         wgpuRenderPassEncoderSetPipeline(renderPass, renderPipeline);
@@ -138,9 +198,11 @@ int main() try {
         auto modelTranspose = math::transpose(model);
         auto viewProjectionTranspose = math::transpose(projection * view);
         wgpuRenderPassEncoderSetImmediates(renderPass, 0, &modelTranspose, sizeof(modelTranspose));
-        wgpuRenderPassEncoderSetImmediates(renderPass, sizeof(modelTranspose), &viewProjectionTranspose, sizeof(viewProjectionTranspose));
+        wgpuRenderPassEncoderSetImmediates(renderPass, 64, &viewProjectionTranspose, sizeof(viewProjectionTranspose));
 
-        // wgpuRenderPassEncoderDrawIndexed(...)
+        wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, WGPU_WHOLE_SIZE);
+        wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint32, 0, WGPU_WHOLE_SIZE);
+        wgpuRenderPassEncoderDrawIndexed(renderPass, cow.indices.size(), 1, 0, 0, 0);
 
         wgpuRenderPassEncoderEnd(renderPass);
         wgpuRenderPassEncoderRelease(renderPass);

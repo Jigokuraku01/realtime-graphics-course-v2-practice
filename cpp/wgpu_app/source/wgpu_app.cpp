@@ -299,6 +299,15 @@ void WgpuApp::resize(int width, int height) {
     wgpuSurfaceConfigure(surface_, &config_);
 }
 
+void WgpuApp::grab_mouse(bool grab)
+{
+    SDL_SetWindowRelativeMouseMode(window_, grab);
+    if (grab)
+        SDL_HideCursor();
+    else
+        SDL_ShowCursor();
+}
+
 std::optional<WGPUSurfaceTexture> WgpuApp::beginFrame() {
     WGPUSurfaceTexture surfaceTexture{};
     wgpuSurfaceGetCurrentTexture(surface_, &surfaceTexture);

@@ -1,5 +1,5 @@
 [package]
-name = "practice02"
+name = "practice05"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,3 +7,5 @@ edition = "2024"
 wgpu = { workspace = true }
 bytemuck = { workspace = true }
 wgpu_app = { workspace = true }
+glam = { workspace = true }
+image = { workspace = true }

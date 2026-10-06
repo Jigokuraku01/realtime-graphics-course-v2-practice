@@ -27,9 +27,11 @@ endif()
 add_library(wgpu_app
     include/wgpu_app.hpp
     include/file_utils.hpp
+    include/image_utils.hpp
     include/obj_loader.hpp
     source/wgpu_app.cpp
     source/file_utils.cpp
+    source/image_utils.cpp
     source/obj_loader.cpp
 )
 target_include_directories(wgpu_app PUBLIC

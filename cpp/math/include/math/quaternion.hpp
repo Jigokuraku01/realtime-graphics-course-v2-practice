@@ -20,6 +20,10 @@ struct quaternion {
     constexpr T & w() { return data.w(); }
     constexpr T const & w() const { return data.w(); }
 
+    static constexpr quaternion zero() {
+        return {};
+    }
+
     static constexpr quaternion identity() {
         return {{T{0}, T{0}, T{0}, T{1}}};
     }
@@ -34,6 +38,9 @@ struct quaternion {
 
     friend constexpr bool operator == (quaternion const &, quaternion const &) = default;
 };
+
+template <typename T>
+quaternion(vector<T, 4>) -> quaternion<T>;
 
 template <typename T>
 constexpr quaternion<T> & operator += (quaternion<T> & a, quaternion<T> const & b) {

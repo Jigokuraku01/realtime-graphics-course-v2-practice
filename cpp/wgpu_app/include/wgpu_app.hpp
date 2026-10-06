@@ -23,6 +23,7 @@ public:
     float pixelDensity() const;
 
     void resize(int width, int height);
+    void grab_mouse(bool grab);
 
     std::optional<WGPUSurfaceTexture> beginFrame();
     WGPUSurface surface() const { return surface_; }

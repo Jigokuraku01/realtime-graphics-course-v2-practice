@@ -27,10 +27,36 @@ struct matrix {
         return data[row][col];
     }
 
+    static constexpr matrix zero() requires (Rows == Cols) {
+        return matrix{};
+    }
+
     static constexpr matrix identity() requires (Rows == Cols) {
         matrix m{};
         for (std::size_t i = 0; i < Rows; ++i) {
             m[i][i] = T{1};
+        }
+        return m;
+    }
+
+    template <typename ... Args>
+        requires ((std::is_same_v<Args, vector<T, Cols>> && ...) && (sizeof...(Args) == Rows))
+    static constexpr matrix from_rows(Args const & ... rows) {
+        matrix m;
+        for (std::size_t j = 0; j < Cols; ++j) {
+            std::size_t i = 0;
+            ((m[i++][j] = rows[j]), ...);
+        }
+        return m;
+    }
+
+    template <typename ... Args>
+        requires ((std::is_same_v<Args, vector<T, Rows>> && ...) && (sizeof...(Args) == Cols))
+    static constexpr matrix from_cols(Args const & ... cols) {
+        matrix m;
+        for (std::size_t i = 0; i < Rows; ++i) {
+            std::size_t j = 0;
+            ((m[i][j++] = cols[i]), ...);
         }
         return m;
     }

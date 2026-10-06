@@ -5,6 +5,7 @@
 #include <math/vector.hpp>
 
 #include <cstddef>
+#include <cmath>
 
 namespace math {
 
@@ -23,6 +24,45 @@ constexpr matrix<T, N + 1, N + 1> scale(vector<T, N> const & s) {
     for (std::size_t i = 0; i < N; ++i) {
         m[i][i] = s[i];
     }
+    return m;
+}
+
+template <typename T>
+constexpr matrix<T, 4, 4> rotation_xy(T angle) {
+    T const c = std::cos(angle);
+    T const s = std::sin(angle);
+
+    auto m = matrix<T, 4, 4>::identity();
+    m[0][0] =  c;
+    m[0][1] = -s;
+    m[1][0] =  s;
+    m[1][1] =  c;
+    return m;
+}
+
+template <typename T>
+constexpr matrix<T, 4, 4> rotation_xz(T angle) {
+    T const c = std::cos(angle);
+    T const s = std::sin(angle);
+
+    auto m = matrix<T, 4, 4>::identity();
+    m[0][0] =  c;
+    m[0][2] = -s;
+    m[2][0] =  s;
+    m[2][2] =  c;
+    return m;
+}
+
+template <typename T>
+constexpr matrix<T, 4, 4> rotation_yz(T angle) {
+    T const c = std::cos(angle);
+    T const s = std::sin(angle);
+
+    auto m = matrix<T, 4, 4>::identity();
+    m[1][1] =  c;
+    m[1][2] = -s;
+    m[2][1] =  s;
+    m[2][2] =  c;
     return m;
 }
 

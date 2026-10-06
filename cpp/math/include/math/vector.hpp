@@ -31,8 +31,42 @@ struct vector {
     constexpr T & w() requires (N >= 4) { return data[3]; }
     constexpr T const & w() const requires (N >= 4) { return data[3]; }
 
+    static constexpr vector zero() {
+        return vector{};
+    }
+
     friend constexpr bool operator == (vector const &, vector const &) = default;
 };
+
+template <typename ... Args>
+vector(Args...) -> vector<std::common_type_t<Args...>, sizeof...(Args)>;
+
+template <std::size_t M, typename T, std::size_t N>
+    requires (M <= N)
+constexpr vector<T, M> head(vector<T, N> const & v) {
+    vector<T, M> r;
+    for (std::size_t i = 0; i < M; ++i)
+        r[i] = v[i];
+    return r;
+}
+
+template <typename T, std::size_t N>
+constexpr vector<T, N + 1> append_zero(vector<T, N> const & v) {
+    vector<T, N + 1> r;
+    for (std::size_t i = 0; i < N; ++i)
+        r[i] = v[i];
+    r[N] = T{0};
+    return r;
+}
+
+template <typename T, std::size_t N>
+constexpr vector<T, N + 1> append_one(vector<T, N> const & v) {
+    vector<T, N + 1> r;
+    for (std::size_t i = 0; i < N; ++i)
+        r[i] = v[i];
+    r[N] = T{1};
+    return r;
+}
 
 template <typename H, typename T, std::size_t N>
 constexpr vector<H, N> cast(vector<T, N> const & a) {
