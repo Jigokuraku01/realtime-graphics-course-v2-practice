@@ -139,6 +139,9 @@ int main() try {
         }
 
         if (!depthBuffer || wgpuTextureGetWidth(depthBuffer) != app.width() || wgpuTextureGetHeight(depthBuffer) != app.height()) {
+            if (depthBufferView) wgpuTextureViewRelease(depthBufferView);
+            if (depthBuffer) wgpuTextureRelease(depthBuffer);
+
             WGPUTextureDescriptor depthBufferDescriptor = WGPU_TEXTURE_DESCRIPTOR_INIT;
             depthBufferDescriptor.usage = WGPUTextureUsage_RenderAttachment;
             depthBufferDescriptor.dimension = WGPUTextureDimension_2D;
