@@ -222,6 +222,12 @@ int main() try {
         wgpuTextureRelease(surfaceTexture->texture);
     }
 
+    if (depthBufferView) wgpuTextureViewRelease(depthBufferView);
+    if (depthBuffer) wgpuTextureRelease(depthBuffer);
+
+    wgpuBufferRelease(vertexBuffer);
+    wgpuBufferRelease(indexBuffer);
+
     wgpuRenderPipelineRelease(renderPipeline);
     wgpuShaderModuleRelease(shaderModule);
 } catch (const std::exception &e) {
