@@ -7,7 +7,7 @@ use wgpu_app::{AppConfig, KeyCode, ObjMesh, ObjVertex, WgpuApp, WgpuState, load_
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct Mat4(pub [[f32; 4]; 4]); 
+struct Mat4(pub [[f32; 4]; 4]);
 
 unsafe impl bytemuck::Pod for Mat4 {}
 unsafe impl bytemuck::Zeroable for Mat4 {}
@@ -78,9 +78,7 @@ impl Mul for Mat4 {
         let mut out = [[0.0f32; 4]; 4];
         for col in 0..4 {
             for row in 0..4 {
-                out[col][row] = (0..4)
-                    .map(|k| self.0[k][row] * rhs.0[col][k])
-                    .sum();
+                out[col][row] = (0..4).map(|k| self.0[k][row] * rhs.0[col][k]).sum();
             }
         }
         Mat4(out)
@@ -296,7 +294,9 @@ impl WgpuApp for Practice04 {
             .iter()
             .zip(rotations.iter())
             .map(|(&(ox, oy), &rotation)| {
-                Mat4::from_translation(self.bunny_x + ox, self.bunny_y + oy, 0.0) * rotation * Mat4::from_scale(scale)
+                Mat4::from_translation(self.bunny_x + ox, self.bunny_y + oy, 0.0)
+                    * rotation
+                    * Mat4::from_scale(scale)
             })
             .collect();
 
@@ -309,14 +309,11 @@ impl WgpuApp for Practice04 {
 
         let near = 0.1;
         let far = 100.0;
-        let angle_right_seen = PI / 4.0;
-        let angle_left_seen = -PI / 4.0;
-        let angle_top_seen = PI / 4.0;
-        let angle_bottom_seen = -PI / 4.0;
-        let right = angle_right_seen.tan() * near;
-        let left = angle_left_seen.tan() * near;
-        let top = angle_top_seen.tan() * near;
-        let bottom = angle_bottom_seen.tan() * near;
+        let aspect = app.width() as f32 / app.height() as f32;
+        let top = (PI / 4.0).tan() * near;
+        let bottom = -top;
+        let right = top * aspect;
+        let left = -right;
 
         let projection_matrix = Mat4::from_cols([
             [2.0 * near / (right - left), 0.0, 0.0, 0.0],
