@@ -18,9 +18,9 @@ var<immediate> immediates: Immediates;
 @vertex
 fn vertexMain(in: VertexIn) -> VertexOut {
     return VertexOut(
-        immediates.viewProjection * immediates.model * vec4f(in.position, 1.0),
-        normalize((immediates.model * vec4f(in.normal, 0.0)).xyz)
-    );
+            immediates.viewProjection * immediates.model * vec4f(in.position, 1.0),
+            normalize((immediates.model * vec4f(in.normal, 0.0)).xyz),
+        );
 }
 
 @fragment
@@ -32,7 +32,7 @@ fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
     let ambient = vec3f(0.0, 0.02, 0.1);
 
     let light_dir = normalize(vec3f(3.0, 2.0, 1.0));
-    let color = pow(0.5 + 0.5 * dot(normal, light_dir), 2.0) * albedo
+    var color = pow(0.5 + 0.5 * dot(normal, light_dir), 2.0) * albedo
         + pow(max(0.0, dot(normal, vec3f(0.0, 0.0, 1.0))), 64.0) * specular_albedo;
 
     return vec4f(color, 1.0);
