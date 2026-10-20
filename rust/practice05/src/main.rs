@@ -360,7 +360,16 @@ impl WgpuApp for Practice05 {
             self.camera_distance -= 3.0 * dt;
         }
 
-        let model_matrix = Mat4::from_rotation_y(-self.model_rotation);
+        let beat = self.time * 2.0 * PI * 2.0;
+        let sway = 0.12 * beat.sin();
+        let bounce = 0.045 * (1.0 + (2.0 * beat).cos());
+        let lean = 0.14 * beat.sin();
+        let turn = 0.08 * (beat + 0.5).sin();
+        let nod = 0.045 * (2.0 * beat).sin();
+        let model_matrix = Mat4::from_translation(Vec3::new(sway, bounce, 0.0))
+            * Mat4::from_rotation_y(-self.model_rotation + turn)
+            * Mat4::from_rotation_z(lean)
+            * Mat4::from_rotation_x(nod);
 
         let view_matrix = Mat4::from_translation(Vec3::new(0.0, 0.0, -self.camera_distance));
 
@@ -427,7 +436,7 @@ impl WgpuApp for Practice05 {
 
 fn main() {
     run::<Practice05>(AppConfig {
-        title: "Practice05",
+        title: "Dancing Cow",
         width: 1280,
         height: 720,
         srgb: false,

@@ -31,8 +31,17 @@ var cowSampler: sampler;
 
 @vertex
 fn vertexMain(in: VertexIn) -> VertexOut {
+    var position = in.position;
+    let beat = immediates.time * 2.0 * 6.2831853;
+    let side_phase = select(3.1415927, 0.0, in.position.x >= 0.0);
+    let step = sin(beat + side_phase);
+    let foot_weight = (1.0 - smoothstep(-0.48, -0.12, in.position.y))
+        * smoothstep(0.10, 0.22, abs(in.position.x));
+    position.y += foot_weight * 0.12 * max(step, 0.0);
+    position.z += foot_weight * 0.10 * step;
+
     return VertexOut(
-            uniforms.viewProjection * uniforms.model * vec4f(in.position, 1.0),
+            uniforms.viewProjection * uniforms.model * vec4f(position, 1.0),
             normalize((uniforms.model * vec4f(in.normal, 0.0)).xyz),
             in.texcoord,
         );
@@ -40,8 +49,5 @@ fn vertexMain(in: VertexIn) -> VertexOut {
 
 @fragment
 fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
-        let offset = vec2f(immediates.time * 0.1, 0.0);
-    let uv = in.texcoord + offset;
-
-    return textureSample(cowTexture, cowSampler, uv);
+    return textureSample(cowTexture, cowSampler, in.texcoord);
 }
