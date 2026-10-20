@@ -169,9 +169,16 @@ impl WgpuState {
         }
     }
 
-    pub fn grab_mouse(&mut self, grab: bool) {
-        self.window.set_cursor_visible(!grab);
-        self.window.set_cursor_grab(if grab { CursorGrabMode::Locked } else { CursorGrabMode::None }).ok();
+    pub fn grab_mouse(&mut self, grab: bool) -> bool {
+        let result = self.window.set_cursor_grab(if grab {
+            CursorGrabMode::Locked
+        } else {
+            CursorGrabMode::None
+        });
+        if result.is_ok() {
+            self.window.set_cursor_visible(!grab);
+        }
+        result.is_ok()
     }
 }
 
@@ -186,6 +193,7 @@ pub trait WgpuApp {
     fn on_mouseup(&mut self, _gpu: &mut WgpuState, _button: MouseButton) {}
 
     fn on_mousemove(&mut self, _gpu: &mut WgpuState, _dx: f32, _dy: f32) {}
+    fn on_focus_lost(&mut self, _gpu: &mut WgpuState) {}
 }
 
 pub fn run<P: WgpuApp>(config: AppConfig) {
@@ -219,6 +227,11 @@ pub fn run<P: WgpuApp>(config: AppConfig) {
                 WindowEvent::Resized(size) => {
                     gpu.resize(size);
                     gpu.window.request_redraw();
+                }
+                WindowEvent::Focused(false) => {
+                    gpu.keydown.clear();
+                    gpu.mousedown.clear();
+                    practice.on_focus_lost(gpu);
                 }
                 WindowEvent::RedrawRequested => {
                     practice.redraw(gpu);
@@ -267,12 +280,9 @@ pub fn run<P: WgpuApp>(config: AppConfig) {
                 return;
             };
 
-            match event {
-                DeviceEvent::MouseMotion { delta } => {
-                    let (dx, dy) = delta;
-                    practice.on_mousemove(gpu, dx as f32, dy as f32);
-                }
-                _ => {}
+            if let DeviceEvent::MouseMotion { delta } = event {
+                let (dx, dy) = delta;
+                practice.on_mousemove(gpu, dx as f32, dy as f32);
             }
         }
     }
