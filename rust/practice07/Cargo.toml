@@ -8,3 +8,7 @@ wgpu = { workspace = true }
 bytemuck = { workspace = true }
 wgpu_app = { workspace = true }
 glam = { workspace = true }
+
+[package.metadata.wgsl-analyzer]
+edition = "2026_pre"
+root = "."

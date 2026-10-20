@@ -23,8 +23,10 @@ struct Immediates {
     model: mat4x4f,
 }
 
-@group(0) @binding(0) var<uniform> camera: CameraUniforms;
-@group(1) @binding(0) var<uniform> lights: LightsUniforms;
+@group(0) @binding(0)
+var<uniform> camera: CameraUniforms;
+@group(1) @binding(0)
+var<uniform> lights: LightsUniforms;
 
 var<immediate> immediates: Immediates;
 
@@ -32,10 +34,10 @@ var<immediate> immediates: Immediates;
 fn vertexMain(in: VertexIn) -> VertexOut {
     let world_position = immediates.model * vec4f(in.position, 1.0);
     return VertexOut(
-        camera.viewProjection * world_position,
-        world_position.xyz,
-        normalize((immediates.model * vec4f(in.normal, 0.0)).xyz)
-    );
+            camera.viewProjection * world_position,
+            world_position.xyz,
+            normalize((immediates.model * vec4f(in.normal, 0.0)).xyz),
+        );
 }
 
 @fragment

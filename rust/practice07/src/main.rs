@@ -1,19 +1,18 @@
+use glam::{Mat4, Vec3};
+use std::f32::consts::PI;
 use std::fs;
 use std::mem;
 use std::path::Path;
 use std::time::Instant;
-use std::f32::consts::PI;
-use glam::{Vec3, Mat4};
 use wgpu::util::DeviceExt;
 
-use wgpu_app::{run, load_obj, ObjVertex, AppConfig, WgpuApp, WgpuState, KeyCode};
+use wgpu_app::{AppConfig, KeyCode, ObjVertex, WgpuApp, WgpuState, load_obj, run};
 
 const PROJECT_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct CameraUniforms
-{
+struct CameraUniforms {
     view_projection: Mat4,
     position: Vec3,
     padding: f32,
@@ -21,23 +20,20 @@ struct CameraUniforms
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct LightsUniforms
-{
+struct LightsUniforms {
     ambient_intensity: Vec3,
     padding: f32,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Immediates
-{
+struct Immediates {
     model: Mat4,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct LightImmediates
-{
+struct LightImmediates {
     position: Vec3,
 }
 
@@ -87,40 +83,43 @@ impl WgpuApp for Practice07 {
         let shader = load_shader_module(&app.device, Path::new(PROJECT_ROOT).join("shader.wgsl"))
             .expect("failed to load shader");
 
-        let light_shader = load_shader_module(&app.device, Path::new(PROJECT_ROOT).join("light_shader.wgsl"))
-            .expect("failed to load shader");
+        let light_shader = load_shader_module(
+            &app.device,
+            Path::new(PROJECT_ROOT).join("light_shader.wgsl"),
+        )
+        .expect("failed to load shader");
 
-        let camera_bind_group_layout = app.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ]
-        });
+        let camera_bind_group_layout =
+            app.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
 
-        let lights_bind_group_layout = app.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ]
-        });
+        let lights_bind_group_layout =
+            app.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
 
         let camera_uniform_buffer = app.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -139,133 +138,135 @@ impl WgpuApp for Practice07 {
         let camera_bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &camera_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: camera_uniform_buffer.as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_uniform_buffer.as_entire_binding(),
+            }],
         });
 
         let lights_bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &lights_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: lights_uniform_buffer.as_entire_binding(),
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: lights_uniform_buffer.as_entire_binding(),
+            }],
+        });
+
+        let pipeline_layout = app
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                bind_group_layouts: &[
+                    Some(&camera_bind_group_layout),
+                    Some(&lights_bind_group_layout),
+                ],
+                immediate_size: mem::size_of::<Immediates>() as u32,
+                ..Default::default()
+            });
+
+        let pipeline = app
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: None,
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vertexMain"),
+                    buffers: &[Some(wgpu::VertexBufferLayout {
+                        array_stride: mem::size_of::<ObjVertex>() as wgpu::BufferAddress,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[
+                            wgpu::VertexAttribute {
+                                offset: mem::offset_of!(ObjVertex, position) as wgpu::BufferAddress,
+                                shader_location: 0,
+                                format: wgpu::VertexFormat::Float32x3,
+                            },
+                            wgpu::VertexAttribute {
+                                offset: mem::offset_of!(ObjVertex, normal) as wgpu::BufferAddress,
+                                shader_location: 1,
+                                format: wgpu::VertexFormat::Float32x3,
+                            },
+                            wgpu::VertexAttribute {
+                                offset: mem::offset_of!(ObjVertex, texcoord) as wgpu::BufferAddress,
+                                shader_location: 2,
+                                format: wgpu::VertexFormat::Float32x2,
+                            },
+                        ],
+                    })],
+                    compilation_options: Default::default(),
                 },
-            ],
-        });
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fragmentMain"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: app.surface_format(),
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24Plus,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::Less),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: None,
+            });
 
-        let pipeline_layout = app.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            bind_group_layouts: &[
-                Some(&camera_bind_group_layout),
-                Some(&lights_bind_group_layout),
-            ],
-            immediate_size: mem::size_of::<Immediates>() as u32,
-            ..Default::default()
-        });
+        let light_pipeline_layout =
+            app.device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    bind_group_layouts: &[Some(&camera_bind_group_layout)],
+                    immediate_size: mem::size_of::<LightImmediates>() as u32,
+                    ..Default::default()
+                });
 
-        let pipeline = app.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertexMain"),
-                buffers: &[Some(wgpu::VertexBufferLayout {
-                    array_stride: mem::size_of::<ObjVertex>() as wgpu::BufferAddress,
-                    step_mode: wgpu::VertexStepMode::Vertex, 
-                    attributes: &[
-                        wgpu::VertexAttribute {
-                            offset: mem::offset_of!(ObjVertex, position) as wgpu::BufferAddress,
-                            shader_location: 0,
-                            format: wgpu::VertexFormat::Float32x3,
-                        },
-                        wgpu::VertexAttribute {
-                            offset: mem::offset_of!(ObjVertex, normal) as wgpu::BufferAddress,
-                            shader_location: 1,
-                            format: wgpu::VertexFormat::Float32x3,
-                        },
-                        wgpu::VertexAttribute {
-                            offset: mem::offset_of!(ObjVertex, texcoord) as wgpu::BufferAddress,
-                            shader_location: 2,
-                            format: wgpu::VertexFormat::Float32x2,
-                        },
-                    ],
-                })],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragmentMain"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: app.surface_format(),
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: Some(wgpu::Face::Back),
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: Some(true),
-                depth_compare: Some(wgpu::CompareFunction::Less),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: Default::default(),
-            multiview_mask: None,
-            cache: None,
-        });
-
-        let light_pipeline_layout = app.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            bind_group_layouts: &[
-                Some(&camera_bind_group_layout),
-            ],
-            immediate_size: mem::size_of::<LightImmediates>() as u32,
-            ..Default::default()
-        });
-
-        let light_pipeline = app.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&light_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &light_shader,
-                entry_point: Some("vertexMain"),
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &light_shader,
-                entry_point: Some("fragmentMain"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: app.surface_format(),
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::LineList,
-                cull_mode: Some(wgpu::Face::Back),
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: Some(true),
-                depth_compare: Some(wgpu::CompareFunction::Less),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: Default::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+        let light_pipeline = app
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: None,
+                layout: Some(&light_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &light_shader,
+                    entry_point: Some("vertexMain"),
+                    buffers: &[],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &light_shader,
+                    entry_point: Some("fragmentMain"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: app.surface_format(),
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::LineList,
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24Plus,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::Less),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: None,
+            });
 
         let cow = load_obj(Path::new(PROJECT_ROOT).join("suzanne.obj")).unwrap();
 
@@ -296,11 +297,14 @@ impl WgpuApp for Practice07 {
             return;
         };
 
-        if self.depth_buffer.as_ref().is_none_or(|depth_buffer| depth_buffer.width() != app.width() || depth_buffer.height() != app.height()) {
+        if self.depth_buffer.as_ref().is_none_or(|depth_buffer| {
+            depth_buffer.width() != app.width() || depth_buffer.height() != app.height()
+        }) {
             let new_depth_buffer = app.device.create_texture(&wgpu::TextureDescriptor {
                 label: None,
                 dimension: wgpu::TextureDimension::D2,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TRANSIENT_ATTACHMENT,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TRANSIENT_ATTACHMENT,
                 size: wgpu::Extent3d {
                     width: app.width(),
                     height: app.height(),
@@ -312,7 +316,8 @@ impl WgpuApp for Practice07 {
                 view_formats: &[],
             });
 
-            let new_depth_buffer_view = new_depth_buffer.create_view(&wgpu::TextureViewDescriptor::default());
+            let new_depth_buffer_view =
+                new_depth_buffer.create_view(&wgpu::TextureViewDescriptor::default());
 
             self.depth_buffer = Some(new_depth_buffer);
             self.depth_buffer_view = Some(new_depth_buffer_view);
@@ -341,12 +346,19 @@ impl WgpuApp for Practice07 {
 
         let model_matrix = Mat4::IDENTITY;
 
-        let view_matrix = Mat4::from_translation(Vec3::new(0.0, 0.0, - self.camera_distance))
-            * Mat4::from_rotation_y(- self.camera_rotation);
+        let view_matrix = Mat4::from_translation(Vec3::new(0.0, 0.0, -self.camera_distance))
+            * Mat4::from_rotation_y(-self.camera_rotation);
 
-        let projection_matrix = Mat4::perspective_rh(PI / 3.0, app.width() as f32 / app.height() as f32, 0.01, 100.0);
+        let projection_matrix = Mat4::perspective_rh(
+            PI / 3.0,
+            app.width() as f32 / app.height() as f32,
+            0.01,
+            100.0,
+        );
 
-        let target_view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let target_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let camera_uniforms = CameraUniforms {
             view_projection: projection_matrix * view_matrix,
@@ -354,14 +366,22 @@ impl WgpuApp for Practice07 {
             padding: 0.0,
         };
 
-        app.queue.write_buffer(&self.camera_uniform_buffer, 0, bytemuck::bytes_of(&camera_uniforms));
+        app.queue.write_buffer(
+            &self.camera_uniform_buffer,
+            0,
+            bytemuck::bytes_of(&camera_uniforms),
+        );
 
         let lights_uniforms = LightsUniforms {
             ambient_intensity: Vec3::new(0.01, 0.01, 0.01),
             padding: 0.0,
         };
 
-        app.queue.write_buffer(&self.lights_uniform_buffer, 0, bytemuck::bytes_of(&lights_uniforms));
+        app.queue.write_buffer(
+            &self.lights_uniform_buffer,
+            0,
+            bytemuck::bytes_of(&lights_uniforms),
+        );
 
         let mut encoder = app.device.create_command_encoder(&Default::default());
 
@@ -372,7 +392,12 @@ impl WgpuApp for Practice07 {
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color{r: 0.01, g: 0.03, b: 0.05, a: 1.0}),
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.01,
+                            g: 0.03,
+                            b: 0.05,
+                            a: 1.0,
+                        }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
