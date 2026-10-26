@@ -22,19 +22,30 @@ struct CameraUniforms {
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct LightsUniforms {
     ambient_intensity: Vec3,
-    padding: f32,
+    _padding0: f32,
+    dir_light_direction: Vec3,
+    dir_light_intensity: f32,
+    light_position: Vec3,
+    brightness: f32,
+    attenuation: Vec3,
+    _padding1: f32,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct Immediates {
     model: Mat4,
+    albedo: Vec3,
+    roughness: f32,
+    specular_factor: f32,
+    padding: Vec3,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct LightImmediates {
     position: Vec3,
+    _padding: f32,
 }
 
 fn load_shader_module(
@@ -64,6 +75,7 @@ struct Practice07 {
     time: f32,
     camera_distance: f32,
     camera_rotation: f32,
+    point_light_enabled: bool,
 }
 
 fn load_buffer<T: bytemuck::Pod>(
@@ -287,8 +299,15 @@ impl WgpuApp for Practice07 {
             index_count: cow.indices.len() as u32,
             last_frame_start: Instant::now(),
             time: 0.0,
-            camera_distance: 5.0,
+            camera_distance: 9.0,
             camera_rotation: 0.0,
+            point_light_enabled: true,
+        }
+    }
+
+    fn on_keydown(&mut self, _app: &mut WgpuState, key: KeyCode) {
+        if key == KeyCode::Space {
+            self.point_light_enabled = !self.point_light_enabled;
         }
     }
 
@@ -343,8 +362,7 @@ impl WgpuApp for Practice07 {
         if app.keydown.contains(&KeyCode::ArrowDown) {
             self.camera_distance -= 7.0 * dt;
         }
-
-        let model_matrix = Mat4::IDENTITY;
+        self.camera_distance = self.camera_distance.clamp(3.0, 50.0);
 
         let view_matrix = Mat4::from_translation(Vec3::new(0.0, 0.0, -self.camera_distance))
             * Mat4::from_rotation_y(-self.camera_rotation);
@@ -362,7 +380,12 @@ impl WgpuApp for Practice07 {
 
         let camera_uniforms = CameraUniforms {
             view_projection: projection_matrix * view_matrix,
-            position: Vec3::new(0.0, 0.0, 0.0),
+            position: Vec3::new(
+                self.camera_distance * self.camera_rotation.sin(),
+                0.0,
+                self.camera_distance * self.camera_rotation.cos(),
+            ),
+
             padding: 0.0,
         };
 
@@ -371,10 +394,22 @@ impl WgpuApp for Practice07 {
             0,
             bytemuck::bytes_of(&camera_uniforms),
         );
+        let light_position = Vec3::new(
+            2.0 * (self.time * 1.7).cos(),
+            1.3 * (self.time).sin(),
+            2.0 * (self.time).sin(),
+        );
 
         let lights_uniforms = LightsUniforms {
             ambient_intensity: Vec3::new(0.01, 0.01, 0.01),
-            padding: 0.0,
+            _padding0: 0.0,
+            dir_light_direction: Vec3::new(self.time.cos() * 0.5, 1.0, self.time.sin() * 0.5)
+                .normalize(),
+            dir_light_intensity: 0.3,
+            light_position,
+            brightness: if self.point_light_enabled { 1.0 } else { 0.0 },
+            attenuation: Vec3::new(1.0, 0.09, 0.032),
+            _padding1: 0.0,
         };
 
         app.queue.write_buffer(
@@ -413,16 +448,47 @@ impl WgpuApp for Practice07 {
             });
             render_pass.set_pipeline(&self.pipeline);
 
-            let immediates = Immediates {
-                model: model_matrix,
-            };
-
-            render_pass.set_immediates(0, bytemuck::bytes_of(&immediates));
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.lights_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+
+            const ROUGHNESSES: [f32; 3] = [0.2, 0.45, 0.75];
+            const SPECULAR_FACTORS: [f32; 3] = [0.15, 0.55, 1.0];
+            let stride = 3.0;
+
+            for (row, &roughness) in ROUGHNESSES.iter().enumerate() {
+                for (column, &specular_factor) in SPECULAR_FACTORS.iter().enumerate() {
+                    let model_matrix = Mat4::from_translation(Vec3::new(
+                        (column as f32 - 1.0) * stride,
+                        (1.0 - row as f32) * stride,
+                        0.0,
+                    ));
+
+                    let immediates = Immediates {
+                        model: model_matrix,
+                        albedo: Vec3::new(0.16, 0.58, 0.48),
+                        padding: Vec3 {
+                            x: 0.0,
+                            y: 0.0,
+                            z: 0.0,
+                        },
+                        roughness,
+                        specular_factor,
+                    };
+
+                    render_pass.set_immediates(0, bytemuck::bytes_of(&immediates));
+                    render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+                }
+            }
+
+            render_pass.set_pipeline(&self.light_pipeline);
+            let light_immediates = LightImmediates {
+                position: light_position,
+                _padding: 0.0,
+            };
+            render_pass.set_immediates(0, bytemuck::bytes_of(&light_immediates));
+            render_pass.draw(0..6, 0..1);
         }
 
         app.queue.submit(std::iter::once(encoder.finish()));
