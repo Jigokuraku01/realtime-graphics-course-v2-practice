@@ -49,5 +49,24 @@ fn vertexMain(in: VertexIn) -> VertexOut {
 
 @fragment
 fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
-    return textureSample(cowTexture, cowSampler, in.texcoord);
+    let albedo = textureSample(cowTexture, cowSampler, in.texcoord).rgb;
+
+    let ambient_dir = vec3f(0.0, 1.0, 0.0);
+    let ambient_color = vec3f(0.2);
+
+    let light1_dir = normalize(vec3f(3.0, 2.0, 1.0));
+    let light2_dir = normalize(vec3f(-3.0, 2.0, -1.0));
+
+    let light1_color = vec3f(1.0, 0.5, 0.25);
+    let light2_color = vec3f(0.25, 0.5, 1.0);
+
+    let normal = normalize(in.normal);
+
+    let lighting =
+        (0.5 + 0.5 * dot(normal, ambient_dir)) * ambient_color
+        + max(0.0, dot(normal, light1_dir)) * light1_color
+        + max(0.0, dot(normal, light2_dir)) * light2_color;
+
+    let color = albedo * lighting;
+    return vec4f(color, 1.0);
 }
