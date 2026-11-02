@@ -27,6 +27,7 @@ struct LightsUniforms {
     padding2: f32,
     light_intensity: Vec3,
     padding3: f32,
+    shadow_projection: Mat4,
 }
 
 #[repr(C)]
@@ -46,6 +47,12 @@ struct DebugDepthTextureImmediates {
     extent: Vec2,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct ShadowImmediates {
+    shadow_projection: Mat4,
+}
+
 fn load_shader_module(
     device: &wgpu::Device,
     path: impl AsRef<Path>,
@@ -60,12 +67,15 @@ fn load_shader_module(
 struct Practice08 {
     depth_buffer: Option<wgpu::Texture>,
     depth_buffer_view: Option<wgpu::TextureView>,
+    _shadow_map: wgpu::Texture,
+    shadow_map_view: wgpu::TextureView,
     camera_uniform_buffer: wgpu::Buffer,
     lights_uniform_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     lights_bind_group: wgpu::BindGroup,
     pipeline: wgpu::RenderPipeline,
     debug_depth_texture_pipeline: wgpu::RenderPipeline,
+    shadow_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
@@ -99,6 +109,48 @@ impl WgpuApp for Practice08 {
         )
         .expect("failed to load shader");
 
+        let shadow_shader = load_shader_module(
+            &app.device,
+            Path::new(PROJECT_ROOT).join("shadow_shader.wgsl"),
+        )
+        .expect("failed to load shadow shader");
+
+        let shadow_map = app.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("shadow map"),
+            size: wgpu::Extent3d {
+                width: 1024,
+                height: 1024,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth24Plus,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let shadow_map_view = shadow_map.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let shadow_sampler = app.device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("shadow map debug sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let shadow_compare_sampler = app.device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("shadow map comparison sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            compare: Some(wgpu::CompareFunction::Less),
+            ..Default::default()
+        });
+
         let camera_bind_group_layout =
             app.device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -119,16 +171,40 @@ impl WgpuApp for Practice08 {
             app.device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label: None,
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    }],
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Depth,
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                            count: None,
+                        },
+                    ],
                 });
 
         let camera_uniform_buffer = app.device.create_buffer(&wgpu::BufferDescriptor {
@@ -157,10 +233,24 @@ impl WgpuApp for Practice08 {
         let lights_bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &lights_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: lights_uniform_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: lights_uniform_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&shadow_map_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&shadow_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Sampler(&shadow_compare_sampler),
+                },
+            ],
         });
 
         let pipeline_layout = app
@@ -277,6 +367,51 @@ impl WgpuApp for Practice08 {
                     cache: None,
                 });
 
+        let shadow_pipeline_layout =
+            app.device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("shadow pipeline layout"),
+                    bind_group_layouts: &[],
+                    immediate_size: mem::size_of::<ShadowImmediates>() as u32,
+                });
+
+        let shadow_pipeline = app
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("shadow pipeline"),
+                layout: Some(&shadow_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shadow_shader,
+                    entry_point: Some("vertexMain"),
+                    buffers: &[Some(wgpu::VertexBufferLayout {
+                        array_stride: mem::size_of::<ObjVertex>() as wgpu::BufferAddress,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[wgpu::VertexAttribute {
+                            offset: mem::offset_of!(ObjVertex, position) as wgpu::BufferAddress,
+                            shader_location: 0,
+                            format: wgpu::VertexFormat::Float32x3,
+                        }],
+                    })],
+                    compilation_options: Default::default(),
+                },
+                fragment: None,
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24Plus,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::Less),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: None,
+            });
+
         let buddha = load_obj(Path::new(PROJECT_ROOT).join("buddha.obj")).unwrap();
 
         let vertex_buffer = load_buffer(&app.device, &buddha.vertices, wgpu::BufferUsages::VERTEX);
@@ -285,12 +420,15 @@ impl WgpuApp for Practice08 {
         Self {
             depth_buffer: None,
             depth_buffer_view: None,
+            _shadow_map: shadow_map,
+            shadow_map_view,
             camera_uniform_buffer,
             lights_uniform_buffer,
             camera_bind_group,
             lights_bind_group,
             pipeline,
             debug_depth_texture_pipeline,
+            shadow_pipeline,
             vertex_buffer,
             index_buffer,
             index_count: buddha.indices.len() as u32,
@@ -375,9 +513,23 @@ impl WgpuApp for Practice08 {
         let light_direction =
             Vec3::new((self.time * 0.5).sin(), 1.0, (self.time * 0.5).cos()).normalize();
 
+        let shadow_z = -light_direction;
+        let shadow_x = shadow_z.cross(Vec3::Y).normalize();
+        let shadow_y = shadow_x.cross(shadow_z);
+        let world_to_shadow = Mat4::from_cols(
+            shadow_x.extend(0.0),
+            shadow_y.extend(0.0),
+            shadow_z.extend(0.0),
+            Vec3::ZERO.extend(1.0),
+        )
+        .transpose();
+        let depth_to_zero_one = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.5))
+            * Mat4::from_scale(Vec3::new(1.0, 1.0, 0.5));
+        let shadow_projection = depth_to_zero_one * world_to_shadow;
+
         let camera_uniforms = CameraUniforms {
             view_projection: projection_matrix * view_matrix,
-            position: Vec3::new(0.0, 0.0, 0.0),
+            position: Vec3::ZERO,
             padding: 0.0,
         };
 
@@ -390,10 +542,11 @@ impl WgpuApp for Practice08 {
         let lights_uniforms = LightsUniforms {
             ambient_intensity: Vec3::new(0.05, 0.10, 0.15),
             padding1: 0.0,
-            light_direction: light_direction,
+            light_direction,
             padding2: 0.0,
             light_intensity: Vec3::new(0.8, 0.6, 0.4),
             padding3: 0.0,
+            shadow_projection,
         };
 
         app.queue.write_buffer(
@@ -403,6 +556,29 @@ impl WgpuApp for Practice08 {
         );
 
         let mut encoder = app.device.create_command_encoder(&Default::default());
+
+        {
+            let mut shadow_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("shadow map pass"),
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.shadow_map_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                ..Default::default()
+            });
+
+            let shadow_immediates = ShadowImmediates { shadow_projection };
+            shadow_pass.set_pipeline(&self.shadow_pipeline);
+            shadow_pass.set_immediates(0, bytemuck::bytes_of(&shadow_immediates));
+            shadow_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            shadow_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            shadow_pass.draw_indexed(0..self.index_count, 0, 0..1);
+        }
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -446,6 +622,20 @@ impl WgpuApp for Practice08 {
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+
+            let width = app.width() as f32;
+            let height = app.height() as f32;
+            let side_px = (height * 0.4).min(width * 0.25);
+            let extent = Vec2::new(side_px / width, side_px / height);
+            let debug_immediates = DebugDepthTextureImmediates {
+                center: Vec2::new(-1.0 + extent.x, -1.0 + extent.y),
+                extent,
+            };
+
+            render_pass.set_pipeline(&self.debug_depth_texture_pipeline);
+            render_pass.set_bind_group(0, &self.lights_bind_group, &[]);
+            render_pass.set_immediates(0, bytemuck::bytes_of(&debug_immediates));
+            render_pass.draw(0..6, 0..1);
         }
 
         app.queue.submit(std::iter::once(encoder.finish()));

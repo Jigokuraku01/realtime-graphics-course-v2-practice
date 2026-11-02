@@ -19,6 +19,7 @@ struct LightsUniforms {
     ambientIntensity: vec3f,
     lightDirection: vec3f,
     lightIntensity: vec3f,
+    shadowProjection: mat4x4f,
 }
 
 struct Immediates {
@@ -32,6 +33,12 @@ struct Immediates {
 var<uniform> camera: CameraUniforms;
 @group(1) @binding(0)
 var<uniform> lights: LightsUniforms;
+@group(1) @binding(1)
+var shadowMap: texture_depth_2d;
+@group(1) @binding(2)
+var shadowMapSampler: sampler;
+@group(1) @binding(3)
+var shadowCompareSampler: sampler_comparison;
 
 var<immediate> immediates: Immediates;
 
@@ -61,6 +68,25 @@ fn computeLight(
             * pow(max(0.0, dot(halfway, normal)), power)) * lightIntensity;
 }
 
+const SHADOW_BIAS = 0.001;
+
+fn shadowVisibility(worldPosition: vec3f) -> f32 {
+    let projected = lights.shadowProjection * vec4f(worldPosition, 1.0);
+    let shadowCoord = projected.xyz / projected.w;
+    let uv = vec2f(0.5 + 0.5 * shadowCoord.x, 0.5 - 0.5 * shadowCoord.y);
+
+    let visibility = textureSampleCompare(
+            shadowMap,
+            shadowCompareSampler,
+            uv,
+            shadowCoord.z - SHADOW_BIAS,
+        );
+    let insideMap =
+        projected.w > 0.0 && all(shadowCoord.xy >= vec2f(-1.0)) && all(shadowCoord.xy <= vec2f(1.0))
+        && shadowCoord.z >= 0.0 && shadowCoord.z <= 1.0;
+    return select(1.0, visibility, insideMap);
+}
+
 @fragment
 fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
     let normal = normalize(in.normal);
@@ -70,9 +96,11 @@ fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
     let specularPower = 1.0 / max(0.0001, immediates.roughness * immediates.roughness) - 1.0;
     let cosine = max(0.0, dot(normal, lights.lightDirection));
 
-    let color = immediates.albedo * (lights.ambientIntensity + lights.lightIntensity * cosine)
+    let directLight = immediates.albedo * lights.lightIntensity * cosine
         + lights.lightIntensity * immediates.specularFactor * (specularPower + 2.0) / (2.0 * PI)
         * pow(max(0.0, dot(halfway, normal)), specularPower);
+    let color = immediates.albedo * lights.ambientIntensity
+        + shadowVisibility(in.world_position) * directLight;
 
     return vec4f(color, 1.0);
 }
