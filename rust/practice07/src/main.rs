@@ -385,7 +385,6 @@ impl WgpuApp for Practice07 {
                 0.0,
                 self.camera_distance * self.camera_rotation.cos(),
             ),
-
             padding: 0.0,
         };
 
