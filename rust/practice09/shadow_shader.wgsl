@@ -16,3 +16,12 @@ var<immediate> immediates: Immediates;
 fn vertexMain(in: VertexIn) -> VertexOut {
     return VertexOut(immediates.shadowProjection * vec4f(in.position, 1.0));
 }
+
+@fragment
+fn fragmentMain(@builtin(position) position: vec4f) -> @location(0) vec4f {
+    let depth = position.z;
+    let dzdx = dpdx(depth);
+    let dzdy = dpdy(depth);
+    let secondMoment = depth * depth + 0.25 * (dzdx * dzdx + dzdy * dzdy);
+    return vec4f(depth, secondMoment, 0.0, 0.0);
+}

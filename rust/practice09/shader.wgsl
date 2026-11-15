@@ -37,6 +37,8 @@ var<uniform> lights: LightsUniforms;
 var shadowMap: texture_depth_2d;
 @group(1) @binding(2)
 var shadowMapSampler: sampler;
+@group(1) @binding(3)
+var shadowMoments: texture_2d<f32>;
 
 var<immediate> immediates: Immediates;
 
@@ -51,6 +53,21 @@ fn vertexMain(in: VertexIn) -> VertexOut {
 }
 
 const PI = 3.1415926535;
+const LIGHT_BLEED_REDUCTION = 0.3;
+
+fn sampleShadowMoments(texcoord: vec2f) -> vec2f {
+    let texel = 1.0 / vec2f(textureDimensions(shadowMoments, 0));
+    let weights = array<f32, 5>(0.120078384, 0.233880757, 0.292081718, 0.233880757, 0.120078384);
+    var sum = vec2f(0.0);
+    for (var y = 0; y < 5; y++) {
+        for (var x = 0; x < 5; x++) {
+            let offset = (vec2f(f32(x), f32(y)) - vec2f(2.0)) * texel;
+            sum += textureSampleLevel(shadowMoments, shadowMapSampler, texcoord + offset, 0.0).rg
+                * weights[x] * weights[y];
+        }
+    }
+    return sum;
+}
 
 fn computeLight(
     normal: vec3f,
@@ -80,10 +97,18 @@ fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
 
     var shadowFactor = 1.0;
 
-    if all(abs(shadowCoord.xy) < vec2f(1.0)) {
+    if all(abs(shadowCoord.xy) < vec2f(1.0)) && shadowCoord.z >= 0.0 && shadowCoord.z <= 1.0 {
         let texcoord = shadowCoord.xy * vec2f(0.5, -0.5) + vec2f(0.5);
-        if textureSample(shadowMap, shadowMapSampler, texcoord) < shadowCoord.z - 0.01 {
-            shadowFactor = 0.0;
+        let moments = sampleShadowMoments(texcoord);
+        let distance = shadowCoord.z - moments.x;
+        if distance > 0.0 {
+            let variance = max(moments.y - moments.x * moments.x, 0.0);
+            let visibility = variance / (variance + distance * distance);
+            shadowFactor = clamp(
+                    (visibility - LIGHT_BLEED_REDUCTION) / (1.0 - LIGHT_BLEED_REDUCTION),
+                    0.0,
+                    1.0,
+                );
         }
     }
 
