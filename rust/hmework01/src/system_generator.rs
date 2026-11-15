@@ -1,8 +1,8 @@
 use std::f32::consts::TAU;
 
-use rand::{rngs::StdRng, RngExt, SeedableRng};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 
-use crate::colors::{hsv_to_rgb, SurfaceStyle};
+use crate::colors::{SurfaceStyle, hsv_to_rgb};
 #[derive(Clone, Copy)]
 pub struct BodySpec {
     pub appearance: SurfaceStyle,

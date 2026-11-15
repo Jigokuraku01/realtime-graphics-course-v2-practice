@@ -639,6 +639,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
 
 [[package]]
+name = "hmework01"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "rand",
+ "wgpu",
+ "wgpu_app",
+]
+
+[[package]]
+name = "homework02"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "image",
+ "wgpu",
+ "wgpu_app",
+]
+
+[[package]]
 name = "image"
 version = "0.25.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1531,17 +1553,6 @@ name = "profiling"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d595e54a326bc53c1c197b32d295e14b169e3cfeaa8dc82b529f947fba6bcf5"
-
-[[package]]
-name = "project_template"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "glam",
- "rand",
- "wgpu",
- "wgpu_app",
-]
 
 [[package]]
 name = "pxfm"
