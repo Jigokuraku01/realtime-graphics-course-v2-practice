@@ -11,6 +11,7 @@ members = [
     "project_template",
     "practice08",
     "practice09",
+    "practice10",
 ]
 resolver = "2"
 
