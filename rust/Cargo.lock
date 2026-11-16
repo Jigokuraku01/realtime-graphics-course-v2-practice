@@ -1503,6 +1503,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "practice11"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "image",
+ "rand",
+ "wgpu",
+ "wgpu_app",
+]
+
+[[package]]
 name = "presser"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
