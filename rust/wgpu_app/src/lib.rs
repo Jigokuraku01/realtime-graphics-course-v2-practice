@@ -1,6 +1,8 @@
 mod obj_loader;
+mod image_utils;
 
 pub use obj_loader::{ObjVertex, ObjMesh, load_obj};
+pub use image_utils::downsample;
 
 use std::sync::Arc;
 use std::collections::HashSet;
